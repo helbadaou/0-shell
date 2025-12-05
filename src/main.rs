@@ -1,6 +1,6 @@
 use std::io::{ self, Write };
 use minishel::lexer;
-use minishel::parser::parser::parsing;
+use minishel::parser::parser::parse_tokens;
 fn main() {
     let purple = "\x1b[35m";
     let cyan = "\x1b[36m";
@@ -18,11 +18,17 @@ fn main() {
                  | |_| |          \__ \ | | | | |  __/ | | | | 
                   \___/           |___/ |_| |_|  \___| |_| |_| 
     "
+    
     );
-    println!("{}======== f============================{}", purple, reset);
+    println!("{}========f============================{}", purple, reset);
     println!("Type 'help' to see built-in commands\n");
+    let mut line_buffer = String::new();
     loop {
-        print!("~>");
+        if line_buffer.is_empty() {
+            print!("$ ");
+        } else {
+            print!("> ");
+        }
         io::stdout().flush().unwrap();
 
         let mut input = String::new();
@@ -35,9 +41,25 @@ fn main() {
         if input.is_empty() {
             continue;
         }
+        if !line_buffer.is_empty() {
+            line_buffer.push('\n');
+        }
+        line_buffer.push_str(input.trim_end());
 
-        let tokens: Vec<lexer::tokenizer::Lexertype> = lexer::tokenizer::tokenize(input);
-        //executor::command::execute(tokens);
-        parsing(tokens);
+        match lexer::tokenizer::tokenize(&line_buffer) {
+            lexer::tokenizer::TokenizeResult::Success(tokens) => {
+                println!("Got tokens: {:?}", tokens);
+                parse_tokens(tokens);
+
+                line_buffer.clear();
+            }
+
+            lexer::tokenizer::TokenizeResult::Incomplete => {}
+
+            lexer::tokenizer::TokenizeResult::Error(err) => {
+                eprintln!("{}", err);
+                line_buffer.clear();
+            }
+        }
     }
 }
