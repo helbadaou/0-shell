@@ -18,7 +18,7 @@ fn main() {
                  | |_| |          \__ \ | | | | |  __/ | | | | 
                   \___/           |___/ |_| |_|  \___| |_| |_| 
     "
-    
+
     );
     println!("{}========f============================{}", purple, reset);
     println!("Type 'help' to see built-in commands\n");
@@ -37,7 +37,7 @@ fn main() {
             break;
         }
 
-        let input = input.trim();
+        let input= input.trim();
         if input.is_empty() {
             continue;
         }
@@ -54,7 +54,9 @@ fn main() {
                 line_buffer.clear();
             }
 
-            lexer::tokenizer::TokenizeResult::Incomplete => {}
+            lexer::tokenizer::TokenizeResult::Incomplete => {
+                continue;
+            }
 
             lexer::tokenizer::TokenizeResult::Error(err) => {
                 eprintln!("{}", err);
@@ -63,3 +65,4 @@ fn main() {
         }
     }
 }
+

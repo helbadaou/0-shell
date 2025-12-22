@@ -1,4 +1,3 @@
-
 use crate::lexer;
 pub struct Command {
     pub name: String,
@@ -32,8 +31,6 @@ pub fn parse_tokens(tokens: Vec<lexer::tokenizer::Lexertype>) {
     }
 }
 
-
-
 pub fn execute_command(command: Command) -> bool {
     match command.name.as_str() {
         "exit" => {
@@ -53,34 +50,26 @@ pub fn execute_command(command: Command) -> bool {
         }
 
         "pwd" => {
-         
+            crate::builtins::pwd::pwd();
         }
 
         "cd" => {
-          
+            crate::builtins::cd::cd(&command.args);
         }
 
-        "ls" => {
-           
-        }
+        "ls" => {}
 
-        "cat" => {
-          
-        }
+        "cat" => {}
 
         "mkdir" => {
-          
+            crate::builtins::mkdir::mkdir(&command.args);
         }
 
-        "rm" => {
-        }
+        "rm" => {}
 
-        "cp" => {
-            
-        }
+        "cp" => {}
 
-        "mv" => {
-        }
+        "mv" => {}
 
         _ => {
             eprintln!("Command not found: {}", command.name);
