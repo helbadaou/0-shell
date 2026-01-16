@@ -59,7 +59,9 @@ pub fn execute_command(command: Command) -> bool {
 
         "ls" => {}
 
-        "cat" => {}
+        "cat" => {
+            crate::builtins::cat::cat(&command.args);
+        }
 
         "mkdir" => {
             crate::builtins::mkdir::mkdir(&command.args);
