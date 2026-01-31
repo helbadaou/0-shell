@@ -15,17 +15,18 @@ pub fn parse_tokens(tokens: Vec<lexer::tokenizer::Lexertype>) {
     };
 
     let args: Vec<String> = token_iter
-        .map(|token| {
-            match token {
-                lexer::tokenizer::Lexertype::Word(s) => s,
-                lexer::tokenizer::Lexertype::Flag(s) => s,
-                lexer::tokenizer::Lexertype::DoubleQuotedString(s) => s,
-                lexer::tokenizer::Lexertype::SingleQuotedString(s) => s,
-            }
+        .map(|token| match token {
+            lexer::tokenizer::Lexertype::Word(s) => s,
+            lexer::tokenizer::Lexertype::Flag(s) => s,
+            lexer::tokenizer::Lexertype::DoubleQuotedString(s) => s,
+            lexer::tokenizer::Lexertype::SingleQuotedString(s) => s,
         })
         .collect();
 
-    let hh = execute_command(Command { name: command_name, args });
+    let hh = execute_command(Command {
+        name: command_name,
+        args,
+    });
     if !hh {
         std::process::exit(0);
     }
@@ -57,7 +58,9 @@ pub fn execute_command(command: Command) -> bool {
             crate::builtins::cd::cd(&command.args);
         }
 
-        "ls" => {}
+        "ls" => {
+            crate::builtins::ls::ls(&command.args);
+        }
 
         "cat" => {}
 
