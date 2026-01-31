@@ -70,7 +70,9 @@ pub fn execute_command(command: Command) -> bool {
 
         "rm" => {}
 
-        "cp" => {}
+        "cp" => {
+            crate::builtins::cp::cp(&command.args);
+        }
 
         "mv" => {}
 
