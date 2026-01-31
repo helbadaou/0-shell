@@ -62,19 +62,25 @@ pub fn execute_command(command: Command) -> bool {
             crate::builtins::ls::ls(&command.args);
         }
 
-        "cat" => {}
+        "cat" => {
+            crate::builtins::cat::cat(&command.args);
+        }
 
         "mkdir" => {
             crate::builtins::mkdir::mkdir(&command.args);
         }
 
-        "rm" => {}
+        "rm" => {
+            crate::builtins::rm::rm(&command.args);
+        }
 
         "cp" => {
             crate::builtins::cp::cp(&command.args);
         }
 
-        "mv" => {}
+        "mv" => {
+            crate::builtins::mv::mv(&command.args);
+        }
 
         _ => {
             eprintln!("Command not found: {}", command.name);
