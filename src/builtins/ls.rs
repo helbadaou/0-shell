@@ -76,6 +76,7 @@ pub fn ls(args: &[String]) {
     let print_entry = |name: &str, meta: &fs::Metadata| {
         let mode = meta.permissions().mode();
         let file_type = if meta.is_dir() { 'd' } else { '-' };
+        println!("{}",mode);
 
         let perms = format!(
             "{}{}{}{}{}{}{}{}{}",

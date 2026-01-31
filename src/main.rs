@@ -1,3 +1,4 @@
+use std::env;
 use std::io::{ self, Write };
 use minishel::lexer;
 use minishel::parser::parser::parse_tokens;
@@ -25,7 +26,7 @@ fn main() {
     let mut line_buffer = String::new();
     loop {
         if line_buffer.is_empty() {
-            print!("$ ");
+            print!(" {:?} $ " , env::current_dir().unwrap());
         } else {
             print!("> ");
         }
