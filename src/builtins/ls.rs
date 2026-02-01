@@ -1,7 +1,7 @@
 use std::fs;
-use std::path::Path;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::time::{UNIX_EPOCH, Duration};
+use std::path::Path;
+use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Local};
 
@@ -9,10 +9,13 @@ use chrono::{DateTime, Local};
 const BLUE: &str = "\x1b[34m";
 const GREEN: &str = "\x1b[32m";
 const RESET: &str = "\x1b[0m";
+const CYAN: &str = "\x1b[36m";
+const RED: &str = "\x1b[31m";
+
 
 pub fn ls(args: &[String]) {
     let mut show_all = false; // -a
-    let mut long = false;     // -l
+    let mut long = false; // -l
     let mut classify = false; // -F
     let mut path = ".";
 
@@ -24,7 +27,10 @@ pub fn ls(args: &[String]) {
                     'a' => show_all = true,
                     'l' => long = true,
                     'F' => classify = true,
-                    _ => {}
+                    _ => {
+                        println!("ls: invalid option '{}'",c);
+                        return;
+                    }
                 }
             }
         } else {
@@ -76,7 +82,6 @@ pub fn ls(args: &[String]) {
     let print_entry = |name: &str, meta: &fs::Metadata| {
         let mode = meta.permissions().mode();
         let file_type = if meta.is_dir() { 'd' } else { '-' };
-        println!("{}",mode);
 
         let perms = format!(
             "{}{}{}{}{}{}{}{}{}",
@@ -108,34 +113,56 @@ pub fn ls(args: &[String]) {
         let datetime: DateTime<Local> = system_time.into();
         let date = datetime.format("%b %d %H:%M");
 
-        let mut display = name.to_string();
-        if classify {
-            if meta.is_dir() {
-                display.push('/');
-            } else if mode & 0o111 != 0 {
-                display.push('*');
-            }
-        }
+        let is_symlink = meta.file_type().is_symlink();
+        let is_dir = meta.is_dir();
+        let is_exec = mode & 0o111 != 0;
 
-        let colored = if meta.is_dir() {
-            format!("{BLUE}{display}{RESET}")
-        } else if mode & 0o111 != 0 {
-            format!("{GREEN}{display}{RESET}")
+        // ----- build display -----
+        let colored = if is_symlink {
+            let mut link_name = name.to_string();
+
+            if classify {
+                link_name.push('@');
+            }
+
+            if let Ok(target) = fs::read_link(Path::new(path).join(name)) {
+                let target_str = target.to_string_lossy();
+
+                let target_colored = if target.is_dir() {
+                    format!("{BLUE}{target_str}{RESET}")
+                } else {
+                    format!("{target_str}")
+                };
+
+                format!("{CYAN}{link_name}{RESET} -> {target_colored}")
+            } else {
+                format!("{CYAN}{link_name}{RESET} -> {RED}(broken){RESET}")
+            }
         } else {
-            display
+            // ----- classify -----
+            let mut display = name.to_string();
+            if classify {
+                if is_dir {
+                    display.push('/');
+                } else if is_exec {
+                    display.push('*');
+                }
+            }
+
+            // ----- color -----
+            if is_dir {
+                format!("{BLUE}{display}{RESET}")
+            } else if is_exec {
+                format!("{GREEN}{display}{RESET}")
+            } else {
+                display
+            }
         };
 
         if long {
             println!(
                 "{}{} {:>2} {:<8} {:<8} {:>6} {} {}",
-                file_type,
-                perms,
-                links,
-                user,
-                group,
-                size,
-                date,
-                colored
+                file_type, perms, links, user, group, size, date, colored
             );
         } else {
             print!("{}  ", colored);
