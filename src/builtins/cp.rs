@@ -1,4 +1,6 @@
+use crossterm::{cursor, execute};
 use std::fs;
+use std::io::{self};
 pub fn cp(args: &[String]) {
     if args.len() < 2 {
         eprintln!("Error: to file at laste");
@@ -8,7 +10,10 @@ pub fn cp(args: &[String]) {
     let dst = &args[1];
 
     match fs::copy(src, dst) {
-        Ok(_) => println!("Copied {} -> {}", src, dst),
+        Ok(_) => {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
+            println!("Copied {} -> {}", src, dst)
+        }
         Err(e) => eprintln!("Error: {}", e),
     }
 }

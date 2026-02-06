@@ -1,7 +1,9 @@
+use crossterm::{cursor, execute};
 use std::fs;
-use std::path::Path;
+use std::io::{self};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::time::{UNIX_EPOCH, Duration};
+use std::path::Path;
+use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Local};
 
@@ -12,7 +14,7 @@ const RESET: &str = "\x1b[0m";
 
 pub fn ls(args: &[String]) {
     let mut show_all = false; // -a
-    let mut long = false;     // -l
+    let mut long = false; // -l
     let mut classify = false; // -F
     let mut path = ".";
 
@@ -69,6 +71,7 @@ pub fn ls(args: &[String]) {
         }
 
         // st_blocks are 512B → bash prints 1K blocks
+        execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
         println!("total {}", total_blocks / 2);
     }
 
@@ -125,18 +128,13 @@ pub fn ls(args: &[String]) {
         };
 
         if long {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             println!(
                 "{}{} {:>2} {:<8} {:<8} {:>6} {} {}",
-                file_type,
-                perms,
-                links,
-                user,
-                group,
-                size,
-                date,
-                colored
+                file_type, perms, links, user, group, size, date, colored
             );
         } else {
+            //execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             print!("{}  ", colored);
         }
     };

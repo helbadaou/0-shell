@@ -37,7 +37,7 @@ pub enum TokenizeResult {
 }
 
 pub fn tokenize(input: &str) -> TokenizeResult {
-    println!("Tokenizing input: {}", input);
+   // println!("Tokenizing input: {}", input);
     let mut tokens = Vec::new();
     let mut buffer = Buffer::new();
     let mut is_escaped = false; 

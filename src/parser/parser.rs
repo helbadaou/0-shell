@@ -1,4 +1,6 @@
 use crate::lexer;
+use crossterm::{cursor, execute};
+use std::io::{self};
 pub struct Command {
     pub name: String,
     pub args: Vec<String>,
@@ -35,11 +37,13 @@ pub fn parse_tokens(tokens: Vec<lexer::tokenizer::Lexertype>) {
 pub fn execute_command(command: Command) -> bool {
     match command.name.as_str() {
         "exit" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             println!("Exiting the shell. Goodbye!");
             return false;
         }
 
         "help" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             println!("--- My Shell Help ---");
             println!("Built-in commands:");
             println!("  echo, cd, ls, pwd, cat, cp, rm, mv, mkdir, exit, help");
@@ -47,6 +51,7 @@ pub fn execute_command(command: Command) -> bool {
         }
 
         "echo" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             println!("{}", command.args.join(" "));
         }
 
@@ -83,6 +88,7 @@ pub fn execute_command(command: Command) -> bool {
         }
 
         _ => {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             eprintln!("Command not found: {}", command.name);
         }
     }

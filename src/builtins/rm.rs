@@ -9,7 +9,8 @@ pub fn rm(args: &[String]) {
 
     let mut recursive = false;
     let mut index = 0;
-    while index < args.len() && args[index] == "-r" { //mzl khas ntcheckee rh lflag khas ykun ri flbdya hit f pc dyali khas drr ykun flbdya 
+    while index < args.len() && args[index] == "-r" {
+        //mzl khas ntcheckee rh lflag khas ykun ri flbdya hit f pc dyali khas drr ykun flbdya
         recursive = true;
         index += 1;
     }
