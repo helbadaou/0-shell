@@ -15,7 +15,7 @@ const RESET: &str = "\x1b[0m";
 
 pub fn ls(args: &[String]) {
     let mut show_all = false; // -a
-    let mut long = false;     // -l
+    let mut long = false; // -l
     let mut classify = false; // -F
     let mut paths: Vec<String> = Vec::new();
 
@@ -55,13 +55,7 @@ pub fn ls(args: &[String]) {
 
 // =====================================================
 
-fn ls_one_path(
-    raw_path: &String,
-    show_all: bool,
-    long: bool,
-    classify: bool,
-    print_header: bool,
-) {
+fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, print_header: bool) {
     let mut path = raw_path.clone();
 
     // expand ~
@@ -96,9 +90,6 @@ fn ls_one_path(
             long,
             classify,
         );
-        if !long {
-            println!();
-        }
         return;
     }
 
@@ -231,6 +222,6 @@ fn print_entry(
             file_type, perms, links, user, group, size, date, colored
         );
     } else {
-        print!("{}  ", colored);
+        println!("{}  ", colored);
     }
 }
