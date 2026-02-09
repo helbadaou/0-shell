@@ -7,6 +7,14 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Local};
 
+#[derive(Default)]
+struct Widths {
+    links: usize,
+    user: usize,
+    group: usize,
+    size: usize,
+}
+
 // ===== COLORS =====
 const BLUE: &str = "\x1b[34m";
 const GREEN: &str = "\x1b[32m";
@@ -39,7 +47,6 @@ pub fn ls(args: &[String]) {
         }
     }
 
-    // default path
     if paths.is_empty() {
         paths.push(".".to_string());
     }
@@ -61,13 +68,10 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
 
     // expand ~
     if path == "~" {
-        path = match env::var("HOME") {
-            Ok(home) => home,
-            Err(_) => {
-                eprintln!("ls: HOME environment variable not set");
-                return;
-            }
-        };
+        path = env::var("HOME").unwrap_or_else(|_| {
+            eprintln!("ls: HOME environment variable not set");
+            ".".to_string()
+        });
     }
 
     let meta = match fs::metadata(&path) {
@@ -82,14 +86,11 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
     if meta.is_file() || meta.file_type().is_symlink() {
         print_entry(
             Path::new(&path).parent().unwrap_or(Path::new(".")),
-            Path::new(&path)
-                .file_name()
-                .unwrap()
-                .to_string_lossy()
-                .as_ref(),
+            Path::new(&path).file_name().unwrap().to_string_lossy().as_ref(),
             &meta,
             long,
             classify,
+            &Widths::default(),
         );
         if !long {
             println!()
@@ -127,6 +128,51 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
         println!("total {}", total_blocks / 2);
     }
 
+    // ===== compute widths =====
+    let mut widths = Widths::default();
+    if long {
+        for entry in &entries {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !show_all && name.starts_with('.') {
+                continue;
+            }
+            if let Ok(meta) = entry.metadata() {
+                let ft = meta.file_type();
+
+                widths.links = widths.links.max(meta.nlink().to_string().len());
+
+                let user = users::get_user_by_uid(meta.uid())
+                    .map(|u| u.name().to_string_lossy().to_string())
+                    .unwrap_or(meta.uid().to_string());
+                widths.user = widths.user.max(user.len());
+
+                let group = users::get_group_by_gid(meta.gid())
+                    .map(|g| g.name().to_string_lossy().to_string())
+                    .unwrap_or(meta.gid().to_string());
+                widths.group = widths.group.max(group.len());
+
+                let size_str = if ft.is_block_device() || ft.is_char_device() {
+                    let dev = meta.rdev();
+                    if dev != 0 {
+                        let major = (dev >> 8) & 0xfff;
+                        let minor = (dev & 0xff) | ((dev >> 12) & 0xfff00);
+                        format!("{}, {}", major, minor)
+                    } else {
+                        "".to_string()
+                    }
+                } else if ft.is_symlink() {
+                    fs::symlink_metadata(entry.path())
+                        .map(|m| m.len().to_string())
+                        .unwrap_or_default()
+                } else {
+                    meta.len().to_string()
+                };
+
+                widths.size = widths.size.max(size_str.len());
+            }
+        }
+    }
+
     // ===== print entries =====
     for entry in entries {
         let name = entry.file_name().to_string_lossy().to_string();
@@ -134,7 +180,7 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
             continue;
         }
         if let Ok(meta) = entry.metadata() {
-            print_entry(&path, &name, &meta, long, classify);
+            print_entry(&path, &name, &meta, long, classify, &widths);
         }
     }
 
@@ -151,6 +197,7 @@ fn print_entry(
     meta: &fs::Metadata,
     long: bool,
     classify: bool,
+    widths: &Widths,
 ) {
     let mode = meta.permissions().mode();
     let ft = meta.file_type();
@@ -168,6 +215,7 @@ fn print_entry(
     } else {
         '-'
     };
+
     let mut perms = format!(
         "{}{}{}{}{}{}{}{}{}",
         if mode & 0o400 != 0 { 'r' } else { '-' },
@@ -182,10 +230,8 @@ fn print_entry(
     );
 
     let full_path = base_path.as_ref().join(name);
-
- let acl_char = if has_acl(&full_path) { '+' } else { ' ' };
-   perms.push(acl_char);
-
+    let acl_char = if has_acl(&full_path) { '+' } else { ' ' };
+    perms.push(acl_char);
 
     let links = meta.nlink();
 
@@ -199,24 +245,19 @@ fn print_entry(
 
     let size = if ft.is_block_device() || ft.is_char_device() {
         let dev = meta.rdev();
-
         if dev != 0 {
             let major = (dev >> 8) & 0xfff;
             let minor = (dev & 0xff) | ((dev >> 12) & 0xfff00);
-            format!("{:>3}, {:>3}", major, minor)
+            format!("{}, {}", major, minor)
         } else {
-            "      ".to_string()
+            "".to_string()
         }
-    } else if ft.is_file() || ft.is_dir() {
-        format!("{:>6}", meta.len())
     } else if ft.is_symlink() {
-        let link_meta = fs::symlink_metadata(base_path.as_ref().join(name))
-            .map(|m| m.len())
-            .unwrap_or(0);
-
-        format!("{:>6}", link_meta)
+        fs::symlink_metadata(&full_path)
+            .map(|m| m.len().to_string())
+            .unwrap_or_default()
     } else {
-        "      ".to_string()
+        meta.len().to_string()
     };
 
     let mtime = meta.mtime();
@@ -224,7 +265,7 @@ fn print_entry(
     let datetime: DateTime<Local> = system_time.into();
     let date = datetime.format("%b %d %H:%M");
 
-    let is_symlink = meta.file_type().is_symlink();
+    let is_symlink = ft.is_symlink();
     let is_dir = meta.is_dir();
     let is_exec = mode & 0o111 != 0;
 
@@ -233,8 +274,7 @@ fn print_entry(
         if classify {
             display.push('@');
         }
-
-        if let Ok(target) = fs::read_link(base_path.as_ref().join(name)) {
+        if let Ok(target) = fs::read_link(&full_path) {
             let target_str = target.to_string_lossy();
             format!("{CYAN}{display}{RESET} -> {target_str}")
         } else {
@@ -249,7 +289,6 @@ fn print_entry(
                 display.push('*');
             }
         }
-
         if is_dir {
             format!("{BLUE}{display}{RESET}")
         } else if is_exec {
@@ -261,13 +300,25 @@ fn print_entry(
 
     if long {
         println!(
-            "{}{} {:>2} {:<8} {:<8} {:>6} {} {}",
-            file_type, perms, links, user, group, size, date, colored
+            "{}{} {:>links$} {:<user$} {:<group$} {:>size$} {} {}",
+            file_type,
+            perms,
+            links,
+            user,
+            group,
+            size,
+            date,
+            colored,
+            links = widths.links,
+            user = widths.user,
+            group = widths.group,
+            size = widths.size,
         );
     } else {
         print!("{}  ", colored);
     }
 }
+
 fn has_acl(path: &Path) -> bool {
     if let Ok(attrs) = xattr::list(path) {
         for attr in attrs {
