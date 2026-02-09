@@ -2,7 +2,6 @@ use std::env;
 use std::fs;
 use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
-
 use std::path::Path;
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -169,7 +168,7 @@ fn print_entry(
     } else {
         '-'
     };
-    let perms = format!(
+    let mut perms = format!(
         "{}{}{}{}{}{}{}{}{}",
         if mode & 0o400 != 0 { 'r' } else { '-' },
         if mode & 0o200 != 0 { 'w' } else { '-' },
@@ -182,6 +181,12 @@ fn print_entry(
         if mode & 0o001 != 0 { 'x' } else { '-' },
     );
 
+    let full_path = base_path.as_ref().join(name);
+
+ let acl_char = if has_acl(&full_path) { '+' } else { ' ' };
+   perms.push(acl_char);
+
+
     let links = meta.nlink();
 
     let user = users::get_user_by_uid(meta.uid())
@@ -192,7 +197,27 @@ fn print_entry(
         .map(|g| g.name().to_string_lossy().to_string())
         .unwrap_or(meta.gid().to_string());
 
-    let size = meta.len();
+    let size = if ft.is_block_device() || ft.is_char_device() {
+        let dev = meta.rdev();
+
+        if dev != 0 {
+            let major = (dev >> 8) & 0xfff;
+            let minor = (dev & 0xff) | ((dev >> 12) & 0xfff00);
+            format!("{:>3}, {:>3}", major, minor)
+        } else {
+            "      ".to_string()
+        }
+    } else if ft.is_file() || ft.is_dir() {
+        format!("{:>6}", meta.len())
+    } else if ft.is_symlink() {
+        let link_meta = fs::symlink_metadata(base_path.as_ref().join(name))
+            .map(|m| m.len())
+            .unwrap_or(0);
+
+        format!("{:>6}", link_meta)
+    } else {
+        "      ".to_string()
+    };
 
     let mtime = meta.mtime();
     let system_time = UNIX_EPOCH + Duration::from_secs(mtime as u64);
@@ -242,4 +267,14 @@ fn print_entry(
     } else {
         print!("{}  ", colored);
     }
+}
+fn has_acl(path: &Path) -> bool {
+    if let Ok(attrs) = xattr::list(path) {
+        for attr in attrs {
+            if attr.to_string_lossy().starts_with("system.posix_acl") {
+                return true;
+            }
+        }
+    }
+    false
 }
