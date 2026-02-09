@@ -90,6 +90,9 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
             long,
             classify,
         );
+        if !long{
+            println!()
+        }
         return;
     }
 
@@ -222,6 +225,6 @@ fn print_entry(
             file_type, perms, links, user, group, size, date, colored
         );
     } else {
-        println!("{}  ", colored);
+        print!("{}  ", colored);
     }
 }
