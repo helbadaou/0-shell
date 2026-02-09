@@ -120,15 +120,26 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
     // ===== total =====
     if long {
         let mut total_blocks = 0;
+
+        if show_all {
+            if let Ok(m) = fs::metadata(&path) {
+                total_blocks += m.blocks();
+            }
+            if let Ok(m) = fs::metadata(Path::new(&path).join("..")) {
+                total_blocks += m.blocks();
+            }
+        }
+
         for entry in &entries {
             let name = entry.file_name().to_string_lossy().to_string();
             if !show_all && name.starts_with('.') {
                 continue;
             }
-            if let Ok(meta) = entry.metadata() {
-                total_blocks += meta.blocks();
+            if let Ok(m) = entry.metadata() {
+                total_blocks += m.blocks();
             }
         }
+
         println!("total {}", total_blocks / 2);
     }
 
@@ -178,13 +189,25 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
     }
 
     // ===== print entries =====
+    if show_all {
+        // .
+        if let Ok(m) = fs::metadata(&path) {
+            print_entry(&path, ".", &m, long, classify, &widths);
+        }
+        // ..
+        let parent = Path::new(&path).join("..");
+        if let Ok(m) = fs::metadata(&parent) {
+            print_entry(&path, "..", &m, long, classify, &widths);
+        }
+    }
+
     for entry in entries {
         let name = entry.file_name().to_string_lossy().to_string();
         if !show_all && name.starts_with('.') {
             continue;
         }
-        if let Ok(meta) = entry.metadata() {
-            print_entry(&path, &name, &meta, long, classify, &widths);
+        if let Ok(m) = entry.metadata() {
+            print_entry(&path, &name, &m, long, classify, &widths);
         }
     }
 
@@ -293,7 +316,7 @@ fn print_entry(
                 display.push('/');
             } else if is_exec {
                 display.push('*');
-            }else if is_fifo {
+            } else if is_fifo {
                 display.push('|');
             } else if is_socket {
                 display.push('=');
