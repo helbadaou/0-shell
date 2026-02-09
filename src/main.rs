@@ -6,8 +6,7 @@ use std::env;
 use std::io::{ self, Write };
 use minishel::lexer;
 use minishel::parser::parser::parse_tokens;
-use std::env;
-use std::io::{self, Write};
+
 fn main() -> std::io::Result<()> {
     let purple = "\x1b[35m";
     let cyan = "\x1b[36m";

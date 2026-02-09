@@ -1,5 +1,7 @@
+use crossterm::{cursor, execute};
 use std::env;
 use std::fs;
+use std::io::{self};
 use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::Path;
@@ -55,6 +57,7 @@ pub fn ls(args: &[String]) {
 
     for (i, path) in paths.iter().enumerate() {
         if i > 0 {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             println!();
         }
         ls_one_path(path, show_all, long, classify, multi);
@@ -97,6 +100,7 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
             &Widths::default(),
         );
         if !long {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             println!()
         }
         return;
@@ -114,6 +118,8 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
     entries.sort_by_key(|e| e.file_name());
 
     if print_header {
+        execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
+
         println!("{}:", path);
     }
 
@@ -139,6 +145,7 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
                 total_blocks += m.blocks();
             }
         }
+        execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
 
         println!("total {}", total_blocks / 2);
     }
@@ -212,6 +219,8 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
     }
 
     if !long {
+        execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
+
         println!();
     }
 }
@@ -333,6 +342,8 @@ fn print_entry(
     };
 
     if long {
+        execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
+
         println!(
             "{}{} {:>links$} {:<user$} {:<group$} {:>size$} {} {}",
             file_type,
