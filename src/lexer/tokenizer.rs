@@ -62,10 +62,10 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                     buffer.typ = BufferType::DoubleQuotedString;
                 } else if c == '\'' {
                     buffer.typ = BufferType::SingleQuotedString; 
-                } else if c == '-' {
+                } /* else if c == '-' {
                     buffer.typ = BufferType::Flag;
                     buffer.buff.push(c);
-                } else if c.is_whitespace() {
+                }  */else if c.is_whitespace() {
                     continue;
                 } else {
                     buffer.typ = BufferType::Word;
@@ -86,12 +86,12 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                     tokens.push(Lexertype::Word(buffer.buff.clone()));
                     buffer.buff.clear();
                     buffer.typ = BufferType::SingleQuotedString;
-                } else if c == '-' {
+                } /* else if c == '-' {
                     tokens.push(Lexertype::Word(buffer.buff.clone()));
                     buffer.buff.clear();
                     buffer.typ = BufferType::Flag;
                     buffer.buff.push(c);
-                } else {
+                } */ else {
                     buffer.buff.push(c);
                 }
             }
