@@ -1,4 +1,4 @@
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use crossterm::terminal::disable_raw_mode;
 use crossterm::terminal::enable_raw_mode;
 use crossterm::{cursor, execute};
@@ -57,11 +57,7 @@ fn main() -> std::io::Result<()> {
         loop {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Esc => {
-                        disable_raw_mode()?;
-                        return Ok(());
-                    }
-
+                   
                     KeyCode::Enter => {
                         execute!(io::stdout(), cursor::MoveToColumn(0),)?;
                         println!();
@@ -78,6 +74,15 @@ fn main() -> std::io::Result<()> {
                     }
 
                     KeyCode::Char(c) => {
+                        if c == 'd' && key.modifiers.contains(KeyModifiers::CONTROL) {
+                            disable_raw_mode()?;
+                            return Ok(());
+                        }
+                        if c == 'c'&&key.modifiers.contains(KeyModifiers::CONTROL) {
+                            execute!(io::stdout(), cursor::MoveToColumn(0),)?;
+                            println!();
+                            break;
+                        }
                         input.push(c);
                         print!("{}", c);
                         io::stdout().flush().unwrap();
@@ -96,7 +101,7 @@ fn main() -> std::io::Result<()> {
             line_buffer.push('\n');
         }
         line_buffer.push_str(input.trim_end());
-        execute!(io::stdout(), cursor::MoveToColumn(0),)?;
+        //execute!(io::stdout(), cursor::MoveToColumn(0),)?;
 
         match lexer::tokenizer::tokenize(&line_buffer) {
             lexer::tokenizer::TokenizeResult::Success(tokens) => {
