@@ -3,6 +3,7 @@ pub struct Command {
     pub name: String,
     pub args: Vec<String>,
 }
+
 pub fn parse_tokens(tokens: Vec<lexer::tokenizer::Lexertype>) {
     let mut token_iter = tokens.into_iter();
 
