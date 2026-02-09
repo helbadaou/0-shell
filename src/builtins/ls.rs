@@ -1,6 +1,8 @@
 use std::env;
 use std::fs;
+use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
 use std::path::Path;
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -90,7 +92,7 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
             long,
             classify,
         );
-        if !long{
+        if !long {
             println!()
         }
         return;
@@ -152,8 +154,21 @@ fn print_entry(
     classify: bool,
 ) {
     let mode = meta.permissions().mode();
-    let file_type = if meta.is_dir() { 'd' } else { '-' };
+    let ft = meta.file_type();
 
+    let file_type = if ft.is_dir() {
+        'd'
+    } else if ft.is_char_device() {
+        'c'
+    } else if ft.is_block_device() {
+        'b'
+    } else if ft.is_symlink() {
+        'l'
+    } else if ft.is_socket() {
+        's'
+    } else {
+        '-'
+    };
     let perms = format!(
         "{}{}{}{}{}{}{}{}{}",
         if mode & 0o400 != 0 { 'r' } else { '-' },
