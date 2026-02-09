@@ -86,7 +86,11 @@ fn ls_one_path(raw_path: &String, show_all: bool, long: bool, classify: bool, pr
     if meta.is_file() || meta.file_type().is_symlink() {
         print_entry(
             Path::new(&path).parent().unwrap_or(Path::new(".")),
-            Path::new(&path).file_name().unwrap().to_string_lossy().as_ref(),
+            Path::new(&path)
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .as_ref(),
             &meta,
             long,
             classify,
@@ -268,6 +272,8 @@ fn print_entry(
     let is_symlink = ft.is_symlink();
     let is_dir = meta.is_dir();
     let is_exec = mode & 0o111 != 0;
+    let is_socket = ft.is_socket();
+    let is_fifo = ft.is_fifo();
 
     let colored = if is_symlink {
         let mut display = name.to_string();
@@ -287,8 +293,13 @@ fn print_entry(
                 display.push('/');
             } else if is_exec {
                 display.push('*');
+            }else if is_fifo {
+                display.push('|');
+            } else if is_socket {
+                display.push('=');
             }
         }
+
         if is_dir {
             format!("{BLUE}{display}{RESET}")
         } else if is_exec {
