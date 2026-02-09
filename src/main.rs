@@ -2,6 +2,8 @@ use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use crossterm::terminal::disable_raw_mode;
 use crossterm::terminal::enable_raw_mode;
 use crossterm::{cursor, execute};
+use std::env;
+use std::io::{ self, Write };
 use minishel::lexer;
 use minishel::parser::parser::parse_tokens;
 use std::env;
