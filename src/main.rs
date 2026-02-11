@@ -1,4 +1,4 @@
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use crossterm::terminal::disable_raw_mode;
 use crossterm::terminal::enable_raw_mode;
 use crossterm::{cursor, execute};
@@ -60,6 +60,21 @@ fn main() -> std::io::Result<()> {
                     KeyCode::Esc => {
                         disable_raw_mode()?;
                         return Ok(());
+                    }
+
+                    // Ctrl+D: Exit the shell
+                    KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        println!();
+                        disable_raw_mode()?;
+                        return Ok(());
+                    }
+
+                    // Ctrl+C: Cancel current input
+                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        println!("^C");
+                        input.clear();
+                        line_buffer.clear();
+                        break;
                     }
 
                     KeyCode::Enter => {

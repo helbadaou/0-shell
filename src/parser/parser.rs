@@ -1,4 +1,5 @@
 use crate::lexer;
+use crossterm::terminal::disable_raw_mode;
 use crossterm::{cursor, execute};
 use std::io::{self};
 pub struct Command {
@@ -30,6 +31,7 @@ pub fn parse_tokens(tokens: Vec<lexer::tokenizer::Lexertype>) {
         args,
     });
     if !hh {
+        let _ = disable_raw_mode();
         std::process::exit(0);
     }
 }
