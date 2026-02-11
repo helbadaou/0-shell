@@ -53,6 +53,9 @@ fn main() -> std::io::Result<()> {
             println!();
             break;
         }*/
+
+
+        
         // === READ ONE COMMAND ===
         loop {
             if let Event::Key(key) = event::read()? {
