@@ -161,19 +161,41 @@ pub fn ls(args: &[String]) {
         }
     } else {
         // Short format - column-based
-        let mut row = String::new();
-        let col_width = 20;
-
-        // Print . and .. first if -a flag
         if a_flag {
-            row.push_str(&format!("{:<width$}", ".", width = col_width));
-            row.push_str(&format!("{:<width$}", "..", width = col_width));
-            if row.len() > 80 {
-                print!("{}\r\n", row.trim_end());
-                let _ = io::stdout().flush();
-                row.clear();
-            }
+            // Print . and ..
+            println!(".{:<width$}..", width = 18);
         }
+
+        if filtered_entries.is_empty() {
+            return;
+        }
+
+        // Calculate the longest filename
+        let max_name_len = filtered_entries
+            .iter()
+            .map(|e| {
+                let name = e.file_name().into_string().unwrap_or_default();
+                let indicator_len = if f_flag {
+                    if let Ok(metadata) = e.metadata() {
+                        if get_indicator(&metadata).is_empty() { 0 } else { 1 }
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                };
+                name.len() + indicator_len
+            })
+            .max()
+            .unwrap_or(1);
+
+        // Add 2 spaces minimum between columns
+        let col_width = max_name_len + 2;
+        let terminal_width = 80; // Default terminal width
+        let cols = std::cmp::max(1, terminal_width / col_width);
+
+        let mut row = String::new();
+        let mut col_count = 0;
 
         for entry in &filtered_entries {
             let file_name = entry.file_name().into_string().unwrap_or_default();
@@ -188,17 +210,23 @@ pub fn ls(args: &[String]) {
             };
 
             let formatted = format!("{}{}", file_name, indicator);
-            row.push_str(&format!("{:<width$}", formatted, width = col_width));
 
-            if row.len() > 80 {
-                print!("{}\r\n", row.trim_end());
+            if col_count < cols - 1 {
+                // Not the last column in this row
+                row.push_str(&format!("{:<width$}", formatted, width = col_width));
+                col_count += 1;
+            } else {
+                // Last column in this row
+                row.push_str(&formatted);
+                print!("{}\r\n", row);
                 let _ = io::stdout().flush();
                 row.clear();
+                col_count = 0;
             }
         }
 
         if !row.is_empty() {
-            print!("{}\r\n", row.trim_end());
+            print!("{}\r\n", row);
             let _ = io::stdout().flush();
         }
     }
