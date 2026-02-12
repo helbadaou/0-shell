@@ -1,7 +1,7 @@
 use crate::lexer;
 use crossterm::terminal::disable_raw_mode;
-use crossterm::{cursor, execute};
-use std::io::{self};
+// use crossterm::{cursor, execute};
+// use std::io::{self};
 pub struct Command {
     pub name: String,
     pub args: Vec<String>,
@@ -61,7 +61,9 @@ pub fn execute_command(command: Command) -> bool {
             crate::builtins::cd::cd(&command.args);
         }
 
-        "ls" => {}
+        "ls" => {
+            crate::builtins::ls::ls(&command.args)
+        }
 
         "cat" => {
             crate::builtins::cat::cat(&command.args);
