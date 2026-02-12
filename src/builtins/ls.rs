@@ -57,60 +57,92 @@ pub fn ls(args: &[String]) {
 
     filtered_entries.sort_by_key(|e| e.file_name());
 
-    if filtered_entries.is_empty() {
+    if filtered_entries.is_empty() && !a_flag {
         return;
     }
 
+    // Calculate column widths for long format
+    let max_links = filtered_entries
+        .iter()
+        .filter_map(|e| e.metadata().ok())
+        .map(|m| m.nlink().to_string().len())
+        .max()
+        .unwrap_or(1);
+
+    let max_user = filtered_entries
+        .iter()
+        .filter_map(|e| e.metadata().ok())
+        .map(|m| {
+            let uid = m.uid();
+            get_user_by_uid(uid)
+                .map(|u| u.name().to_string_lossy().len())
+                .unwrap_or_else(|| uid.to_string().len())
+        })
+        .max()
+        .unwrap_or(1);
+
+    let max_group = filtered_entries
+        .iter()
+        .filter_map(|e| e.metadata().ok())
+        .map(|m| {
+            let gid = m.gid();
+            get_group_by_gid(gid)
+                .map(|g| g.name().to_string_lossy().len())
+                .unwrap_or_else(|| gid.to_string().len())
+        })
+        .max()
+        .unwrap_or(1);
+
+    let max_size = filtered_entries
+        .iter()
+        .filter_map(|e| e.metadata().ok())
+        .map(|m| m.len().to_string().len())
+        .max()
+        .unwrap_or(1);
+
     if l_flag {
-        // Calculate column widths for long format
-        let max_links = filtered_entries
-            .iter()
-            .filter_map(|e| e.metadata().ok())
-            .map(|m| m.nlink().to_string().len())
-            .max()
-            .unwrap_or(1);
-
-        let max_user = filtered_entries
-            .iter()
-            .filter_map(|e| e.metadata().ok())
-            .map(|m| {
-                let uid = m.uid();
-                get_user_by_uid(uid)
-                    .map(|u| u.name().to_string_lossy().len())
-                    .unwrap_or_else(|| uid.to_string().len())
-            })
-            .max()
-            .unwrap_or(1);
-
-        let max_group = filtered_entries
-            .iter()
-            .filter_map(|e| e.metadata().ok())
-            .map(|m| {
-                let gid = m.gid();
-                get_group_by_gid(gid)
-                    .map(|g| g.name().to_string_lossy().len())
-                    .unwrap_or_else(|| gid.to_string().len())
-            })
-            .max()
-            .unwrap_or(1);
-
-        let max_size = filtered_entries
-            .iter()
-            .filter_map(|e| e.metadata().ok())
-            .map(|m| m.len().to_string().len())
-            .max()
-            .unwrap_or(1);
-
-        // Print total blocks
+        // Calculate total blocks
         let mut total_blocks = 0;
         for entry in &filtered_entries {
             if let Ok(meta) = entry.metadata() {
                 total_blocks += meta.blocks();
             }
         }
+
+        // Add . and .. blocks to total if -a flag
+        if a_flag {
+            if let Ok(meta) = fs::metadata(path) {
+                total_blocks += meta.blocks();
+            }
+            let parent_path = if path_str == "." || path_str == "./" {
+                Path::new("..")
+            } else {
+                Path::new(path_str).parent().unwrap_or(Path::new(".."))
+            };
+            if let Ok(meta) = fs::metadata(parent_path) {
+                total_blocks += meta.blocks();
+            }
+        }
+
         let total_output = format!("total {}\r\n", total_blocks / 2);
         let _ = io::stdout().write_all(total_output.as_bytes());
         let _ = io::stdout().flush();
+
+        // Print . and .. first if -a flag
+        if a_flag {
+            if let Ok(meta) = fs::metadata(path) {
+                print_long_entry(".", &meta, f_flag, max_links, max_user, max_group, max_size);
+            }
+            // For .., always use parent, or current dir if at root
+            let parent_path = if path_str == "." || path_str == "./" {
+                Path::new("..")
+            } else {
+                Path::new(path_str).parent().unwrap_or(Path::new(".."))
+            };
+            if let Ok(meta) = fs::metadata(parent_path) {
+                print_long_entry("..", &meta, f_flag, max_links, max_user, max_group, max_size);
+            }
+        }
 
         // Print entries
         for entry in &filtered_entries {
@@ -132,6 +164,17 @@ pub fn ls(args: &[String]) {
         let mut row = String::new();
         let col_width = 20;
 
+        // Print . and .. first if -a flag
+        if a_flag {
+            row.push_str(&format!("{:<width$}", ".", width = col_width));
+            row.push_str(&format!("{:<width$}", "..", width = col_width));
+            if row.len() > 80 {
+                print!("{}\r\n", row.trim_end());
+                let _ = io::stdout().flush();
+                row.clear();
+            }
+        }
+
         for entry in &filtered_entries {
             let file_name = entry.file_name().into_string().unwrap_or_default();
             let indicator = if f_flag {
@@ -148,13 +191,15 @@ pub fn ls(args: &[String]) {
             row.push_str(&format!("{:<width$}", formatted, width = col_width));
 
             if row.len() > 80 {
-                println!("{}", row.trim_end());
+                print!("{}\r\n", row.trim_end());
+                let _ = io::stdout().flush();
                 row.clear();
             }
         }
 
         if !row.is_empty() {
-            println!("{}", row.trim_end());
+            print!("{}\r\n", row.trim_end());
+            let _ = io::stdout().flush();
         }
     }
 }
@@ -240,7 +285,6 @@ fn print_long_entry(
 
     let indicator = if f_flag { get_indicator(meta) } else { "" };
 
-    // Format each column with proper alignment
     let perms_col = format!("{}", permissions);
     let links_col = format!("{:>width$}", nlink, width = max_links);
     let user_col = format!("{:<width$}", user, width = max_user);
