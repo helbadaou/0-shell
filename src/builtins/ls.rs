@@ -197,7 +197,7 @@ pub fn ls(args: &[String]) {
         // Short format - column-based
         if a_flag {
             // Print . and ..
-            println!(".{:<width$}..", width = 18);
+            println!(".{width:<width$}..", width = 18);
         }
 
         if filtered_entries.is_empty() {

@@ -11,7 +11,7 @@ pub enum BufferType {
     Word,
     Flag,
     DoubleQuotedString,
-    SingleQuotedString, 
+    SingleQuotedString,
     None,
 }
 
@@ -29,20 +29,19 @@ impl Buffer {
     }
 }
 
-
 pub enum TokenizeResult {
     Success(Vec<Lexertype>),
     Error(String),
-    Incomplete, 
+    Incomplete,
 }
 
 pub fn tokenize(input: &str) -> TokenizeResult {
     // println!("Tokenizing input: {}", input);
     let mut tokens = Vec::new();
     let mut buffer = Buffer::new();
-    let mut is_escaped = false; 
+    let mut is_escaped = false;
 
-    for c in input.chars() {
+    for (i, c) in input.chars().enumerate() {
         if is_escaped {
             buffer.buff.push(c);
             is_escaped = false;
@@ -61,8 +60,14 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                 if c == '\"' {
                     buffer.typ = BufferType::DoubleQuotedString;
                 } else if c == '\'' {
-                    buffer.typ = BufferType::SingleQuotedString; 
-                } else if c == '-' {
+                    buffer.typ = BufferType::SingleQuotedString;
+                } else if
+                    c == '-' &&
+                    input
+                        .chars()
+                        .nth(i - 1)
+                        .map_or(false, |prev_c| prev_c.is_whitespace())
+                {
                     buffer.typ = BufferType::Flag;
                     buffer.buff.push(c);
                 } else if c.is_whitespace() {
@@ -86,7 +91,13 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                     tokens.push(Lexertype::Word(buffer.buff.clone()));
                     buffer.buff.clear();
                     buffer.typ = BufferType::SingleQuotedString;
-                } else if c == '-' {
+                } else if
+                    c == '-' &&
+                    input
+                        .chars()
+                        .nth(i - 1)
+                        .map_or(false, |prev_c| prev_c.is_whitespace())
+                {
                     tokens.push(Lexertype::Word(buffer.buff.clone()));
                     buffer.buff.clear();
                     buffer.typ = BufferType::Flag;
@@ -135,7 +146,6 @@ pub fn tokenize(input: &str) -> TokenizeResult {
             }
         }
     }
-
 
     if is_escaped {
         return TokenizeResult::Error("Syntax error: Trailing escape character \\".to_string());
