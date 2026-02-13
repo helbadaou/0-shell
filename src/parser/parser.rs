@@ -1,7 +1,7 @@
 use crate::lexer;
 use crossterm::terminal::disable_raw_mode;
-use crossterm::{cursor, execute};
-use std::io::{self};
+use crossterm::{ cursor, execute };
+use std::io::{ self };
 pub struct Command {
     pub name: String,
     pub args: Vec<String>,
@@ -18,11 +18,13 @@ pub fn parse_tokens(tokens: Vec<lexer::tokenizer::Lexertype>) {
     };
 
     let args: Vec<String> = token_iter
-        .map(|token| match token {
-            lexer::tokenizer::Lexertype::Word(s) => s,
-            lexer::tokenizer::Lexertype::Flag(s) => s,
-            lexer::tokenizer::Lexertype::DoubleQuotedString(s) => s,
-            lexer::tokenizer::Lexertype::SingleQuotedString(s) => s,
+        .map(|token| {
+            match token {
+                lexer::tokenizer::Lexertype::Word(s) => s,
+                lexer::tokenizer::Lexertype::Flag(s) => s,
+                lexer::tokenizer::Lexertype::DoubleQuotedString(s) => s,
+                lexer::tokenizer::Lexertype::SingleQuotedString(s) => s,
+            }
         })
         .collect();
 
@@ -39,13 +41,13 @@ pub fn parse_tokens(tokens: Vec<lexer::tokenizer::Lexertype>) {
 pub fn execute_command(command: Command) -> bool {
     match command.name.as_str() {
         "exit" => {
-            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
             println!("Exiting the shell. Goodbye!");
             return false;
         }
 
         "help" => {
-            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
             println!("--- My Shell Help ---");
             println!("Built-in commands:");
             println!("  echo, cd, ls, pwd, cat, cp, rm, mv, mkdir, exit, help");
@@ -53,44 +55,60 @@ pub fn execute_command(command: Command) -> bool {
         }
 
         "echo" => {
-            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
             println!("{}", command.args.join(" "));
         }
 
         "pwd" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
+
             crate::builtins::pwd::pwd();
         }
 
         "cd" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
+
             crate::builtins::cd::cd(&command.args);
         }
 
         "ls" => {
-            crate::builtins::ls::ls(&command.args)
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
+
+            crate::builtins::ls::ls(&command.args);
         }
 
         "cat" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
+
             crate::builtins::cat::cat(&command.args);
         }
 
         "mkdir" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
+
             crate::builtins::mkdir::mkdir(&command.args);
         }
 
         "rm" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
             crate::builtins::rm::rm(&command.args);
         }
 
         "cp" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
             crate::builtins::cp::cp(&command.args);
         }
 
         "mv" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
             crate::builtins::mv::mv(&command.args);
         }
-
+        "clear" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
+            print!("\x1B[2J\x1B[H\x1B[3J");
+        }
         _ => {
-            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
+            execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
             eprintln!("Command not found: {}", command.name);
         }
     }
