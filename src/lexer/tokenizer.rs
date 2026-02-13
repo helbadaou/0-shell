@@ -40,6 +40,7 @@ pub fn tokenize(input: &str) -> TokenizeResult {
     let mut tokens = Vec::new();
     let mut buffer = Buffer::new();
     let mut is_escaped = false;
+    let mut doublcheck = false;
 
     for (i, c) in input.chars().enumerate() {
         if is_escaped {
@@ -126,10 +127,23 @@ pub fn tokenize(input: &str) -> TokenizeResult {
             }
 
             BufferType::DoubleQuotedString => {
-                if c == '\"' {
-                    tokens.push(Lexertype::DoubleQuotedString(buffer.buff.clone()));
-                    buffer.buff.clear();
-                    buffer.typ = BufferType::None;
+                if c == '"' {
+                    if
+                        input
+                            .chars()
+                            .nth(i + 1)
+                            .map_or(false, |next| next == '"')
+                            && !doublcheck
+                    {
+                        doublcheck = true;
+                    }else if doublcheck {
+                        doublcheck = false;
+
+                    } else {
+                        tokens.push(Lexertype::DoubleQuotedString(buffer.buff.clone()));
+                        buffer.buff.clear();
+                        buffer.typ = BufferType::None;
+                    }
                 } else {
                     buffer.buff.push(c);
                 }
