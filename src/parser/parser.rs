@@ -1,7 +1,7 @@
 use crate::lexer;
 use crossterm::terminal::disable_raw_mode;
-// use crossterm::{cursor, execute};
-// use std::io::{self};
+use crossterm::{cursor, execute};
+use std::io::{self};
 pub struct Command {
     pub name: String,
     pub args: Vec<String>,
