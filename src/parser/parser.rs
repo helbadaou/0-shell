@@ -48,10 +48,10 @@ pub fn execute_command(command: Command) -> bool {
 
         "help" => {
             execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
-            println!("--- My Shell Help ---");
-            println!("Built-in commands:");
-            println!("  echo, cd, ls, pwd, cat, cp, rm, mv, mkdir, exit, help");
-            println!("---------------------");
+            println!("--- My Shell Help ---\r");
+            println!("Built-in commands:\r");
+            println!("  echo, cd, ls, pwd, cat, cp, rm, mv, mkdir, exit, help\r");
+            println!("---------------------\r");
         }
 
         "echo" => {
