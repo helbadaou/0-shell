@@ -1,166 +1,382 @@
-use crossterm::{cursor, execute};
 use std::fs;
-use std::io::{self};
-use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::os::unix::fs::{ MetadataExt, PermissionsExt };
 use std::path::Path;
-use std::time::{Duration, UNIX_EPOCH};
-
-use chrono::{DateTime, Local};
-
-// ===== COLORS =====
-const BLUE: &str = "\x1b[34m";
-const GREEN: &str = "\x1b[32m";
-const RESET: &str = "\x1b[0m";
+use users::{ get_user_by_uid, get_group_by_gid };
+use chrono::{ DateTime, Local };
+use std::time::SystemTime;
+use std::io::{ self, Write };
 
 pub fn ls(args: &[String]) {
-    let mut show_all = false; // -a
-    let mut long = false; // -l
-    let mut classify = false; // -F
-    let mut path = ".";
+    let mut a_flag = false;
+    let mut l_flag = false;
+    let mut f_flag = false;
 
-    // ===== parse args =====
     for arg in args {
-        if arg.starts_with('-') {
+        if arg.starts_with('-') && arg.len() > 1 {
             for c in arg.chars().skip(1) {
                 match c {
-                    'a' => show_all = true,
-                    'l' => long = true,
-                    'F' => classify = true,
-                    _ => {}
+                    'a' => {
+                        a_flag = true;
+                    }
+                    'l' => {
+                        l_flag = true;
+                    }
+                    'F' => {
+                        f_flag = true;
+                    }
+                    _ => {} // Ignore unknown flags
                 }
             }
-        } else {
-            path = arg;
         }
     }
 
-    // ===== read directory =====
-    let mut entries: Vec<_> = match fs::read_dir(path) {
-        Ok(e) => e.flatten().collect(),
+    let path_str = args
+        .iter()
+        .find(|arg| !arg.starts_with('-'))
+        .map(|s| s.as_str())
+        .unwrap_or(".");
+
+    let path = Path::new(path_str);
+
+    // Check if path is a file or directory
+    let metadata = match fs::symlink_metadata(path) {
+        // Changed from fs::metadata
+        Ok(meta) => meta,
         Err(e) => {
-            eprintln!("ls: {}", e);
+            eprintln!("0-shell: ls: {}: {}", path_str, e);
             return;
         }
     };
 
-    // ===== sort alphabetically =====
-    entries.sort_by_key(|e| e.file_name());
-
-    // ===== calculate total (like bash) =====
-    if long {
-        let mut total_blocks: u64 = 0;
-
-        // add . and .. only with -a
-        if show_all {
-            if let Ok(meta) = fs::metadata(Path::new(path)) {
-                total_blocks += meta.blocks();
-            }
-            if let Ok(meta) = fs::metadata(Path::new(path).join("..")) {
-                total_blocks += meta.blocks();
-            }
+    // If it's a file or symlink (but not a directory), just print it
+    if metadata.is_file() || metadata.is_symlink() {
+        if l_flag {
+            let max_links = 1;
+            let max_user = 8;
+            let max_group = 8;
+            let max_size = metadata.len().to_string().len();
+            print_long_entry(path_str, &metadata, f_flag, max_links, max_user, max_group, max_size);
+        } else {
+            let indicator = if f_flag {
+                get_indicator(&metadata).to_string()
+            } else {
+                String::new()
+            };
+            print!("{}{}\r\n", path_str, indicator);
+            let _ = io::stdout().flush();
         }
+        return;
+    }
 
-        for entry in &entries {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if !show_all && name.starts_with('.') {
-                continue;
-            }
+    // It's a directory, process it as before
+    let entries = match fs::read_dir(path) {
+        Ok(read) => read.flatten().collect::<Vec<_>>(),
+        Err(e) => {
+            eprintln!("0-shell: ls: {}: {}", path_str, e);
+            return;
+        }
+    };
+
+    // Filter based on -a flag
+    let mut filtered_entries: Vec<_> = entries
+        .into_iter()
+        .filter(|entry| {
+            let name = entry.file_name().into_string().unwrap_or_default();
+            a_flag || !name.starts_with('.')
+        })
+        .collect();
+
+    filtered_entries.sort_by_key(|e| e.file_name());
+
+    if filtered_entries.is_empty() && !a_flag {
+        return;
+    }
+
+    // Calculate column widths for long format
+    let max_links = filtered_entries
+        .iter()
+        .filter_map(|e| e.metadata().ok())
+        .map(|m| m.nlink().to_string().len())
+        .max()
+        .unwrap_or(1);
+
+    let max_user = filtered_entries
+        .iter()
+        .filter_map(|e| e.metadata().ok())
+        .map(|m| {
+            let uid = m.uid();
+            get_user_by_uid(uid)
+                .map(|u| u.name().to_string_lossy().len())
+                .unwrap_or_else(|| uid.to_string().len())
+        })
+        .max()
+        .unwrap_or(1);
+
+    let max_group = filtered_entries
+        .iter()
+        .filter_map(|e| e.metadata().ok())
+        .map(|m| {
+            let gid = m.gid();
+            get_group_by_gid(gid)
+                .map(|g| g.name().to_string_lossy().len())
+                .unwrap_or_else(|| gid.to_string().len())
+        })
+        .max()
+        .unwrap_or(1);
+
+    let max_size = filtered_entries
+        .iter()
+        .filter_map(|e| e.metadata().ok())
+        .map(|m| m.len().to_string().len())
+        .max()
+        .unwrap_or(1);
+
+    if l_flag {
+        // Calculate total blocks
+        let mut total_blocks = 0;
+        for entry in &filtered_entries {
             if let Ok(meta) = entry.metadata() {
                 total_blocks += meta.blocks();
             }
         }
 
-        // st_blocks are 512B → bash prints 1K blocks
-        execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
-        println!("total {}", total_blocks / 2);
-    }
-
-    // ===== helper to print one entry =====
-    let print_entry = |name: &str, meta: &fs::Metadata| {
-        let mode = meta.permissions().mode();
-        let file_type = if meta.is_dir() { 'd' } else { '-' };
-
-        let perms = format!(
-            "{}{}{}{}{}{}{}{}{}",
-            if mode & 0o400 != 0 { 'r' } else { '-' },
-            if mode & 0o200 != 0 { 'w' } else { '-' },
-            if mode & 0o100 != 0 { 'x' } else { '-' },
-            if mode & 0o040 != 0 { 'r' } else { '-' },
-            if mode & 0o020 != 0 { 'w' } else { '-' },
-            if mode & 0o010 != 0 { 'x' } else { '-' },
-            if mode & 0o004 != 0 { 'r' } else { '-' },
-            if mode & 0o002 != 0 { 'w' } else { '-' },
-            if mode & 0o001 != 0 { 'x' } else { '-' },
-        );
-
-        let links = meta.nlink();
-
-        let user = users::get_user_by_uid(meta.uid())
-            .map(|u| u.name().to_string_lossy().to_string())
-            .unwrap_or(meta.uid().to_string());
-
-        let group = users::get_group_by_gid(meta.gid())
-            .map(|g| g.name().to_string_lossy().to_string())
-            .unwrap_or(meta.gid().to_string());
-
-        let size = meta.len();
-
-        let mtime = meta.mtime();
-        let system_time = UNIX_EPOCH + Duration::from_secs(mtime as u64);
-        let datetime: DateTime<Local> = system_time.into();
-        let date = datetime.format("%b %d %H:%M");
-
-        let mut display = name.to_string();
-        if classify {
-            if meta.is_dir() {
-                display.push('/');
-            } else if mode & 0o111 != 0 {
-                display.push('*');
+        // Add . and .. blocks to total if -a flag
+        if a_flag {
+            if let Ok(meta) = fs::symlink_metadata(path) {
+                // Changed
+                total_blocks += meta.blocks();
+            }
+            let parent_path = if path_str == "." || path_str == "./" {
+                Path::new("..")
+            } else {
+                Path::new(path_str).parent().unwrap_or(Path::new(".."))
+            };
+            if let Ok(meta) = fs::symlink_metadata(parent_path) {
+                // Changed
+                total_blocks += meta.blocks();
             }
         }
 
-        let colored = if meta.is_dir() {
-            format!("{BLUE}{display}{RESET}")
-        } else if mode & 0o111 != 0 {
-            format!("{GREEN}{display}{RESET}")
-        } else {
-            display
-        };
+        let total_output = format!("total {}\r\n", total_blocks / 2);
+        let _ = io::stdout().write_all(total_output.as_bytes());
+        let _ = io::stdout().flush();
 
-        if long {
-            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
-            println!(
-                "{}{} {:>2} {:<8} {:<8} {:>6} {} {}",
-                file_type, perms, links, user, group, size, date, colored
-            );
-        } else {
-            //execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
-            print!("{}  ", colored);
+        // Print . and .. first if -a flag
+        if a_flag {
+            if let Ok(meta) = fs::symlink_metadata(path) {
+                // Changed
+                print_long_entry(".", &meta, f_flag, max_links, max_user, max_group, max_size);
+            }
+            let parent_path = if path_str == "." || path_str == "./" {
+                Path::new("..")
+            } else {
+                Path::new(path_str).parent().unwrap_or(Path::new(".."))
+            };
+            if let Ok(meta) = fs::symlink_metadata(parent_path) {
+                // Changed
+                print_long_entry("..", &meta, f_flag, max_links, max_user, max_group, max_size);
+            }
         }
+
+        // Print entries
+        for entry in &filtered_entries {
+            let file_name = entry.file_name().into_string().unwrap_or_default();
+            if let Ok(metadata) = entry.metadata() {
+                print_long_entry(
+                    &file_name,
+                    &metadata,
+                    f_flag,
+                    max_links,
+                    max_user,
+                    max_group,
+                    max_size
+                );
+            }
+        }
+    } else {
+        // Short format - column-based
+        if a_flag {
+            // Print . and ..
+            println!(".{:<width$}..", width = 18);
+        }
+
+        if filtered_entries.is_empty() {
+            return;
+        }
+
+        // Calculate the longest filename
+        let max_name_len = filtered_entries
+            .iter()
+            .map(|e| {
+                let name = e.file_name().into_string().unwrap_or_default();
+                let indicator_len = if f_flag {
+                    if let Ok(metadata) = e.metadata() {
+                        if get_indicator(&metadata).is_empty() { 0 } else { 1 }
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                };
+                name.len() + indicator_len
+            })
+            .max()
+            .unwrap_or(1);
+
+        // Add 2 spaces minimum between columns
+        let col_width = max_name_len + 2;
+        let terminal_width = 80; // Default terminal width
+        let cols = std::cmp::max(1, terminal_width / col_width);
+
+        let mut row = String::new();
+        let mut col_count = 0;
+
+        for entry in &filtered_entries {
+            let file_name = entry.file_name().into_string().unwrap_or_default();
+            let indicator = if f_flag {
+                if let Ok(metadata) = entry.metadata() {
+                    get_indicator(&metadata).to_string()
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+
+            let formatted = format!("{}{}", file_name, indicator);
+
+            if col_count < cols - 1 {
+                // Not the last column in this row
+                row.push_str(&format!("{:<width$}", formatted, width = col_width));
+                col_count += 1;
+            } else {
+                // Last column in this row
+                row.push_str(&formatted);
+                print!("{}\r\n", row);
+                let _ = io::stdout().flush();
+                row.clear();
+                col_count = 0;
+            }
+        }
+
+        if !row.is_empty() {
+            print!("{}\r\n", row);
+            let _ = io::stdout().flush();
+        }
+    }
+}
+
+fn get_indicator(metadata: &fs::Metadata) -> &str {
+    let mode = metadata.permissions().mode();
+    if metadata.is_dir() {
+        "/"
+    } else if metadata.file_type().is_symlink() {
+        "@"
+    } else if (mode & 0o111) != 0 {
+        "*"
+    } else {
+        ""
+    }
+}
+
+fn format_permissions(mode: u32, is_dir: bool) -> String {
+    let mut p = String::with_capacity(10);
+
+    p.push(if is_dir { 'd' } else { '-' });
+
+    let flags = [
+        0o400,
+        0o200,
+        0o100, // user
+        0o040,
+        0o020,
+        0o010, // group
+        0o004,
+        0o002,
+        0o001, // others
+    ];
+
+    for (i, flag) in flags.iter().enumerate() {
+        if (mode & flag) != 0 {
+            p.push(match i % 3 {
+                0 => 'r',
+                1 => 'w',
+                _ => 'x',
+            });
+        } else {
+            p.push('-');
+        }
+    }
+
+    p
+}
+
+fn print_long_entry(
+    name: &str,
+    meta: &fs::Metadata,
+    f_flag: bool,
+    max_links: usize,
+    max_user: usize,
+    max_group: usize,
+    max_size: usize
+) {
+    let modified = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+    let datetime: DateTime<Local> = modified.into();
+    let now = Local::now();
+    let duration = now.signed_duration_since(datetime);
+
+    // Determine file type character
+    let file_type_char = if meta.is_dir() {
+        'd'
+    } else if meta.is_symlink() {
+        'l' // Add this check
+    } else {
+        '-'
     };
 
-    // ===== print . and .. first =====
-    if show_all {
-        if let Ok(meta) = fs::metadata(Path::new(path)) {
-            print_entry(".", &meta);
-        }
-        if let Ok(meta) = fs::metadata(Path::new(path).join("..")) {
-            print_entry("..", &meta);
-        }
-    }
+    let permissions = format_permissions(meta.permissions().mode(), meta.is_dir());
+    // Replace the first character with the correct type
+    let permissions_fixed = format!("{}{}", file_type_char, &permissions[1..]);
 
-    // ===== print directory entries =====
-    for entry in entries {
-        let name = entry.file_name().to_string_lossy().to_string();
-        if !show_all && name.starts_with('.') {
-            continue;
-        }
-        if let Ok(meta) = entry.metadata() {
-            print_entry(&name, &meta);
-        }
-    }
+    let nlink = meta.nlink();
+    let uid = meta.uid();
+    let gid = meta.gid();
+    let size = meta.len();
 
-    if !long {
-        println!();
-    }
+    let user = get_user_by_uid(uid)
+        .map(|u| u.name().to_string_lossy().into_owned())
+        .unwrap_or(uid.to_string());
+
+    let group = get_group_by_gid(gid)
+        .map(|g| g.name().to_string_lossy().into_owned())
+        .unwrap_or(gid.to_string());
+
+    let time_str = if duration.num_days() > 180 || duration.num_days() < 0 {
+        datetime.format("%b %e  %Y").to_string()
+    } else {
+        datetime.format("%b %e %H:%M").to_string()
+    };
+
+    let indicator = if f_flag { get_indicator(meta) } else { "" };
+
+    let perms_col = permissions_fixed;
+    let links_col = format!("{:>width$}", nlink, width = max_links);
+    let user_col = format!("{:<width$}", user, width = max_user);
+    let group_col = format!("{:<width$}", group, width = max_group);
+    let size_col = format!("{:>width$}", size, width = max_size);
+
+    let output = format!(
+        "{} {} {} {} {} {} {}{}\r\n",
+        perms_col,
+        links_col,
+        user_col,
+        group_col,
+        size_col,
+        time_str,
+        name,
+        indicator
+    );
+
+    let _ = io::stdout().write_all(output.as_bytes());
+    let _ = io::stdout().flush();
 }
