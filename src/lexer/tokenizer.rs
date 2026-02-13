@@ -85,9 +85,18 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                     buffer.buff.clear();
                     buffer.typ = BufferType::None;
                 } else if c == '\"' {
-                    tokens.push(Lexertype::Word(buffer.buff.clone()));
-                    buffer.buff.clear();
-                    buffer.typ = BufferType::DoubleQuotedString;
+                    if
+                        input
+                            .chars()
+                            .nth(i - 1)
+                            .map_or(false, |prev_c| !prev_c.is_whitespace())
+                    {
+                        buffer.typ = BufferType::DoubleQuotedString;
+                    } else {
+                        tokens.push(Lexertype::Word(buffer.buff.clone()));
+                        buffer.buff.clear();
+                        buffer.typ = BufferType::DoubleQuotedString;
+                    }
                 } else if c == '\'' {
                     tokens.push(Lexertype::Word(buffer.buff.clone()));
                     buffer.buff.clear();
@@ -114,9 +123,18 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                     buffer.buff.clear();
                     buffer.typ = BufferType::None;
                 } else if c == '\"' {
-                    tokens.push(Lexertype::Flag(buffer.buff.clone()));
-                    buffer.buff.clear();
-                    buffer.typ = BufferType::DoubleQuotedString;
+                    if
+                        input
+                            .chars()
+                            .nth(i - 1)
+                            .map_or(false, |prev_c| !prev_c.is_whitespace())
+                    {
+                        buffer.typ = BufferType::DoubleQuotedString;
+                    } else {
+                        tokens.push(Lexertype::Word(buffer.buff.clone()));
+                        buffer.buff.clear();
+                        buffer.typ = BufferType::DoubleQuotedString;
+                    }
                 } else if c == '\'' {
                     tokens.push(Lexertype::Flag(buffer.buff.clone()));
                     buffer.buff.clear();
@@ -132,13 +150,20 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                         input
                             .chars()
                             .nth(i + 1)
-                            .map_or(false, |next| next == '"')
-                            && !doublcheck
+                            .map_or(false, |next| !next.is_whitespace())
+                            
+                    {
+                        buffer.typ = BufferType::Word;
+                    } else if
+                        input
+                            .chars()
+                            .nth(i + 1)
+                            .map_or(false, |next| next == '"') &&
+                        !doublcheck
                     {
                         doublcheck = true;
-                    }else if doublcheck {
+                    } else if doublcheck {
                         doublcheck = false;
-
                     } else {
                         tokens.push(Lexertype::DoubleQuotedString(buffer.buff.clone()));
                         buffer.buff.clear();
