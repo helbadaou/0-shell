@@ -38,6 +38,37 @@ pub fn ls(args: &[String]) {
 
     let path = Path::new(path_str);
 
+    // Check if path is a file or directory
+    let metadata = match fs::symlink_metadata(path) {
+        // Changed from fs::metadata
+        Ok(meta) => meta,
+        Err(e) => {
+            eprintln!("0-shell: ls: {}: {}", path_str, e);
+            return;
+        }
+    };
+
+    // If it's a file or symlink (but not a directory), just print it
+    if metadata.is_file() || metadata.is_symlink() {
+        if l_flag {
+            let max_links = 1;
+            let max_user = 8;
+            let max_group = 8;
+            let max_size = metadata.len().to_string().len();
+            print_long_entry(path_str, &metadata, f_flag, max_links, max_user, max_group, max_size);
+        } else {
+            let indicator = if f_flag {
+                get_indicator(&metadata).to_string()
+            } else {
+                String::new()
+            };
+            print!("{}{}\r\n", path_str, indicator);
+            let _ = io::stdout().flush();
+        }
+        return;
+    }
+
+    // It's a directory, process it as before
     let entries = match fs::read_dir(path) {
         Ok(read) => read.flatten().collect::<Vec<_>>(),
         Err(e) => {
@@ -111,7 +142,8 @@ pub fn ls(args: &[String]) {
 
         // Add . and .. blocks to total if -a flag
         if a_flag {
-            if let Ok(meta) = fs::metadata(path) {
+            if let Ok(meta) = fs::symlink_metadata(path) {
+                // Changed
                 total_blocks += meta.blocks();
             }
             let parent_path = if path_str == "." || path_str == "./" {
@@ -119,7 +151,8 @@ pub fn ls(args: &[String]) {
             } else {
                 Path::new(path_str).parent().unwrap_or(Path::new(".."))
             };
-            if let Ok(meta) = fs::metadata(parent_path) {
+            if let Ok(meta) = fs::symlink_metadata(parent_path) {
+                // Changed
                 total_blocks += meta.blocks();
             }
         }
@@ -130,16 +163,17 @@ pub fn ls(args: &[String]) {
 
         // Print . and .. first if -a flag
         if a_flag {
-            if let Ok(meta) = fs::metadata(path) {
+            if let Ok(meta) = fs::symlink_metadata(path) {
+                // Changed
                 print_long_entry(".", &meta, f_flag, max_links, max_user, max_group, max_size);
             }
-            // For .., always use parent, or current dir if at root
             let parent_path = if path_str == "." || path_str == "./" {
                 Path::new("..")
             } else {
                 Path::new(path_str).parent().unwrap_or(Path::new(".."))
             };
-            if let Ok(meta) = fs::metadata(parent_path) {
+            if let Ok(meta) = fs::symlink_metadata(parent_path) {
+                // Changed
                 print_long_entry("..", &meta, f_flag, max_links, max_user, max_group, max_size);
             }
         }
@@ -291,7 +325,19 @@ fn print_long_entry(
     let now = Local::now();
     let duration = now.signed_duration_since(datetime);
 
+    // Determine file type character
+    let file_type_char = if meta.is_dir() {
+        'd'
+    } else if meta.is_symlink() {
+        'l' // Add this check
+    } else {
+        '-'
+    };
+
     let permissions = format_permissions(meta.permissions().mode(), meta.is_dir());
+    // Replace the first character with the correct type
+    let permissions_fixed = format!("{}{}", file_type_char, &permissions[1..]);
+
     let nlink = meta.nlink();
     let uid = meta.uid();
     let gid = meta.gid();
@@ -313,7 +359,7 @@ fn print_long_entry(
 
     let indicator = if f_flag { get_indicator(meta) } else { "" };
 
-    let perms_col = format!("{}", permissions);
+    let perms_col = permissions_fixed;
     let links_col = format!("{:>width$}", nlink, width = max_links);
     let user_col = format!("{:<width$}", user, width = max_user);
     let group_col = format!("{:<width$}", group, width = max_group);
