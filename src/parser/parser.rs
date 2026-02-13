@@ -18,17 +18,18 @@ pub fn parse_tokens(tokens: Vec<lexer::tokenizer::Lexertype>) {
     };
 
     let args: Vec<String> = token_iter
-        .map(|token| {
-            match token {
-                lexer::tokenizer::Lexertype::Word(s) => s,
-                lexer::tokenizer::Lexertype::Flag(s) => s,
-                lexer::tokenizer::Lexertype::DoubleQuotedString(s) => s,
-                lexer::tokenizer::Lexertype::SingleQuotedString(s) => s,
-            }
+        .map(|token| match token {
+            lexer::tokenizer::Lexertype::Word(s) => s,
+            lexer::tokenizer::Lexertype::Flag(s) => s,
+            lexer::tokenizer::Lexertype::DoubleQuotedString(s) => s,
+            lexer::tokenizer::Lexertype::SingleQuotedString(s) => s,
         })
         .collect();
 
-    let hh = execute_command(Command { name: command_name, args });
+    let hh = execute_command(Command {
+        name: command_name,
+        args,
+    });
     if !hh {
         let _ = disable_raw_mode();
         std::process::exit(0);
@@ -38,11 +39,13 @@ pub fn parse_tokens(tokens: Vec<lexer::tokenizer::Lexertype>) {
 pub fn execute_command(command: Command) -> bool {
     match command.name.as_str() {
         "exit" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             println!("Exiting the shell. Goodbye!");
             return false;
         }
 
         "help" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             println!("--- My Shell Help ---");
             println!("Built-in commands:");
             println!("  echo, cd, ls, pwd, cat, cp, rm, mv, mkdir, exit, help");
@@ -50,6 +53,7 @@ pub fn execute_command(command: Command) -> bool {
         }
 
         "echo" => {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             println!("{}", command.args.join(" "));
         }
 
@@ -77,11 +81,16 @@ pub fn execute_command(command: Command) -> bool {
             crate::builtins::rm::rm(&command.args);
         }
 
-        "cp" => {}
+        "cp" => {
+            crate::builtins::cp::cp(&command.args);
+        }
 
-        "mv" => {}
+        "mv" => {
+            crate::builtins::mv::mv(&command.args);
+        }
 
         _ => {
+            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             eprintln!("Command not found: {}", command.name);
         }
     }
