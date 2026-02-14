@@ -5,6 +5,7 @@ use users::{ get_user_by_uid, get_group_by_gid };
 use chrono::{ DateTime, Local };
 use std::time::SystemTime;
 use std::io::{ self, Write };
+use crossterm::{cursor, execute, terminal};
 
 pub fn ls(args: &[String]) {
     let mut a_flag = false;
@@ -62,7 +63,7 @@ pub fn ls(args: &[String]) {
             } else {
                 String::new()
             };
-            print!("{}{}\r\n", path_str, indicator);
+            print!("{}{}\r\n", escape_filename(path_str), indicator);
             let _ = io::stdout().flush();
         }
         return;
@@ -209,6 +210,7 @@ pub fn ls(args: &[String]) {
             .iter()
             .map(|e| {
                 let name = e.file_name().into_string().unwrap_or_default();
+                let display_name = escape_filename(&name);
                 let indicator_len = if f_flag {
                     if let Ok(metadata) = e.metadata() {
                         if get_indicator(&metadata).is_empty() { 0 } else { 1 }
@@ -218,14 +220,14 @@ pub fn ls(args: &[String]) {
                 } else {
                     0
                 };
-                name.len() + indicator_len
+                display_name.len() + indicator_len
             })
             .max()
             .unwrap_or(1);
 
         // Add 2 spaces minimum between columns
         let col_width = max_name_len + 2;
-        let terminal_width = 80; // Default terminal width
+        let terminal_width = terminal::size().map(|(w, _)| w as usize).unwrap_or(80);
         let cols = std::cmp::max(1, terminal_width / col_width);
 
         let mut row = String::new();
@@ -233,6 +235,7 @@ pub fn ls(args: &[String]) {
 
         for entry in &filtered_entries {
             let file_name = entry.file_name().into_string().unwrap_or_default();
+            let display_name = escape_filename(&file_name);
             let indicator = if f_flag {
                 if let Ok(metadata) = entry.metadata() {
                     get_indicator(&metadata).to_string()
@@ -243,7 +246,7 @@ pub fn ls(args: &[String]) {
                 String::new()
             };
 
-            let formatted = format!("{}{}", file_name, indicator);
+            let formatted = format!("{}{}", display_name, indicator);
 
             if col_count < cols - 1 {
                 // Not the last column in this row
@@ -263,6 +266,20 @@ pub fn ls(args: &[String]) {
             print!("{}\r\n", row);
             let _ = io::stdout().flush();
         }
+    }
+
+    let _ = execute!(io::stdout(), cursor::MoveToColumn(0));
+}
+
+fn escape_filename(name: &str) -> String {
+    if name.contains('\n') {
+        let mut result = format!("'{}'", name.replace('\n', "'$'\\n''"));
+        if result.ends_with("''") {
+            result.truncate(result.len() - 2);
+        }
+        result
+    } else {
+        name.to_string()
     }
 }
 
@@ -359,6 +376,8 @@ fn print_long_entry(
 
     let indicator = if f_flag { get_indicator(meta) } else { "" };
 
+    let display_name = escape_filename(name);
+
     let perms_col = permissions_fixed;
     let links_col = format!("{:>width$}", nlink, width = max_links);
     let user_col = format!("{:<width$}", user, width = max_user);
@@ -373,7 +392,7 @@ fn print_long_entry(
         group_col,
         size_col,
         time_str,
-        name,
+        display_name,
         indicator
     );
 
