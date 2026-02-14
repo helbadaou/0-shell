@@ -122,6 +122,8 @@ fn main() -> std::io::Result<()> {
                 println!("Got tokens: {:?}", tokens); */
                 parse_tokens(tokens);
 
+                execute!(io::stdout(), cursor::MoveToColumn(0),)?;
+
                 line_buffer.clear();
             }
 
