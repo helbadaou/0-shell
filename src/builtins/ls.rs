@@ -1,9 +1,10 @@
 use std::fs;
-use std::os::unix::fs::{ MetadataExt, PermissionsExt };
+use std::os::unix::fs::{ FileTypeExt, MetadataExt, PermissionsExt };
 use std::path::Path;
 use users::{ get_user_by_uid, get_group_by_gid };
 use chrono::{ DateTime, Local };
 use std::time::SystemTime;
+use std::time::Duration;
 use std::io::{ self, Write };
 use crossterm::{cursor, execute, terminal};
 
@@ -51,6 +52,7 @@ pub fn ls(args: &[String]) {
 
     // If it's a file or symlink (but not a directory), just print it
     if metadata.is_file() || metadata.is_symlink() {
+        println!("dsfsf");
         if l_flag {
             let max_links = 1;
             let max_user = 8;
@@ -337,16 +339,25 @@ fn print_long_entry(
     max_group: usize,
     max_size: usize
 ) {
-    let modified = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+    let modified = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH ) + Duration::from_secs(3600);
     let datetime: DateTime<Local> = modified.into();
     let now = Local::now();
     let duration = now.signed_duration_since(datetime);
 
     // Determine file type character
-    let file_type_char = if meta.is_dir() {
+    let file_type = meta.file_type();
+    let file_type_char = if file_type.is_dir() {
         'd'
-    } else if meta.is_symlink() {
-        'l' // Add this check
+    } else if file_type.is_symlink() {
+        'l'
+    } else if file_type.is_char_device() {
+        'c'
+    } else if file_type.is_block_device() {
+        'b'
+    } else if file_type.is_fifo() {
+        'p'
+    } else if file_type.is_socket() {
+        's'
     } else {
         '-'
     };
