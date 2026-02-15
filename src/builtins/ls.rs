@@ -57,7 +57,7 @@ pub fn ls(args: &[String]) {
             let max_user = 8;
             let max_group = 8;
             let max_size = metadata.len().to_string().len();
-            print_long_entry(path_str, &metadata, f_flag, max_links, max_user, max_group, max_size, 0, 0);
+            print_long_entry(path_str, path, &metadata, f_flag, max_links, max_user, max_group, max_size, 0, 0);
         } else {
             let indicator = if f_flag {
                 get_indicator(&metadata).to_string()
@@ -194,7 +194,7 @@ pub fn ls(args: &[String]) {
         if a_flag {
             if let Ok(meta) = fs::symlink_metadata(path) {
                 // Changed
-                print_long_entry(".", &meta, f_flag, max_links, max_user, max_group, max_size, max_major, max_minor);
+                print_long_entry(".", path, &meta, f_flag, max_links, max_user, max_group, max_size, max_major, max_minor);
             }
             let parent_path = if path_str == "." || path_str == "./" {
                 Path::new("..")
@@ -203,16 +203,17 @@ pub fn ls(args: &[String]) {
             };
             if let Ok(meta) = fs::symlink_metadata(parent_path) {
                 // Changed
-                print_long_entry("..", &meta, f_flag, max_links, max_user, max_group, max_size, max_major, max_minor);
+                print_long_entry("..", parent_path, &meta, f_flag, max_links, max_user, max_group, max_size, max_major, max_minor);
             }
         }
 
         // Print entries
         for entry in &filtered_entries {
             let file_name = entry.file_name().into_string().unwrap_or_default();
-            if let Ok(metadata) = entry.metadata() {
+            if let Ok(metadata) = fs::symlink_metadata(entry.path()) {
                 print_long_entry(
                     &file_name,
+                    &entry.path(),
                     &metadata,
                     f_flag,
                     max_links,
@@ -363,6 +364,7 @@ fn format_permissions(mode: u32, is_dir: bool) -> String {
 
 fn print_long_entry(
     name: &str,
+    path: &Path,
     meta: &fs::Metadata,
     f_flag: bool,
     max_links: usize,
@@ -431,6 +433,16 @@ fn print_long_entry(
 
     let display_name = escape_filename(name);
 
+    // For symlinks, append " -> target"
+    let symlink_target = if meta.file_type().is_symlink() {
+        match fs::read_link(path) {
+            Ok(target) => format!(" -> {}", target.display()),
+            Err(_) => String::new(),
+        }
+    } else {
+        String::new()
+    };
+
     let perms_col = permissions_fixed;
     let links_col = format!("{:>width$}", nlink, width = max_links);
     let user_col = format!("{:<width$}", user, width = max_user);
@@ -438,7 +450,7 @@ fn print_long_entry(
     let size_col = format!("{:>width$}", size, width = max_size);
 
     let output = format!(
-        "{} {} {} {} {} {} {}{}\r\n",
+        "{} {} {} {} {} {} {}{}{}\r\n",
         perms_col,
         links_col,
         user_col,
@@ -446,6 +458,7 @@ fn print_long_entry(
         size_col,
         time_str,
         display_name,
+        symlink_target,
         indicator
     );
 
