@@ -6,7 +6,7 @@ use chrono::{ DateTime, Local };
 use std::time::SystemTime;
 use std::time::Duration;
 use std::io::{ self, Write };
-use crossterm::{cursor, execute, terminal};
+use crossterm::{ cursor, execute, terminal };
 
 pub fn ls(args: &[String]) {
     let mut a_flag = false;
@@ -52,13 +52,12 @@ pub fn ls(args: &[String]) {
 
     // If it's a file or symlink (but not a directory), just print it
     if metadata.is_file() || metadata.is_symlink() {
-        println!("dsfsf");
         if l_flag {
             let max_links = 1;
             let max_user = 8;
             let max_group = 8;
             let max_size = metadata.len().to_string().len();
-            print_long_entry(path_str, &metadata, f_flag, max_links, max_user, max_group, max_size);
+            print_long_entry(path_str, &metadata, f_flag, max_links, max_user, max_group, max_size, 0, 0);
         } else {
             let indicator = if f_flag {
                 get_indicator(&metadata).to_string()
@@ -127,12 +126,39 @@ pub fn ls(args: &[String]) {
         .max()
         .unwrap_or(1);
 
-    let max_size = filtered_entries
+    let max_major = filtered_entries
         .iter()
         .filter_map(|e| e.metadata().ok())
+        .filter(|m| m.file_type().is_char_device() || m.file_type().is_block_device())
+        .map(|m| {
+            let major = (m.rdev() >> 8) & 0xfff;
+            major.to_string().len()
+        })
+        .max()
+        .unwrap_or(0);
+
+    let max_minor = filtered_entries
+        .iter()
+        .filter_map(|e| e.metadata().ok())
+        .filter(|m| m.file_type().is_char_device() || m.file_type().is_block_device())
+        .map(|m| {
+            let minor = m.rdev() & 0xff;
+            minor.to_string().len()
+        })
+        .max()
+        .unwrap_or(0);
+
+    let device_col_width = if max_major > 0 { max_major + 2 + max_minor } else { 0 };
+
+    let max_file_size = filtered_entries
+        .iter()
+        .filter_map(|e| e.metadata().ok())
+        .filter(|m| !m.file_type().is_char_device() && !m.file_type().is_block_device())
         .map(|m| m.len().to_string().len())
         .max()
-        .unwrap_or(1);
+        .unwrap_or(0);
+
+    let max_size = std::cmp::max(device_col_width, max_file_size);
 
     if l_flag {
         // Calculate total blocks
@@ -168,7 +194,7 @@ pub fn ls(args: &[String]) {
         if a_flag {
             if let Ok(meta) = fs::symlink_metadata(path) {
                 // Changed
-                print_long_entry(".", &meta, f_flag, max_links, max_user, max_group, max_size);
+                print_long_entry(".", &meta, f_flag, max_links, max_user, max_group, max_size, max_major, max_minor);
             }
             let parent_path = if path_str == "." || path_str == "./" {
                 Path::new("..")
@@ -177,7 +203,7 @@ pub fn ls(args: &[String]) {
             };
             if let Ok(meta) = fs::symlink_metadata(parent_path) {
                 // Changed
-                print_long_entry("..", &meta, f_flag, max_links, max_user, max_group, max_size);
+                print_long_entry("..", &meta, f_flag, max_links, max_user, max_group, max_size, max_major, max_minor);
             }
         }
 
@@ -192,7 +218,9 @@ pub fn ls(args: &[String]) {
                     max_links,
                     max_user,
                     max_group,
-                    max_size
+                    max_size,
+                    max_major,
+                    max_minor,
                 );
             }
         }
@@ -229,7 +257,10 @@ pub fn ls(args: &[String]) {
 
         // Add 2 spaces minimum between columns
         let col_width = max_name_len + 2;
-        let terminal_width = terminal::size().map(|(w, _)| w as usize).unwrap_or(80);
+        let terminal_width = terminal
+            ::size()
+            .map(|(w, _)| w as usize)
+            .unwrap_or(80);
         let cols = std::cmp::max(1, terminal_width / col_width);
 
         let mut row = String::new();
@@ -337,9 +368,11 @@ fn print_long_entry(
     max_links: usize,
     max_user: usize,
     max_group: usize,
-    max_size: usize
+    max_size: usize,
+    max_major: usize,
+    max_minor: usize,
 ) {
-    let modified = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH ) + Duration::from_secs(3600);
+    let modified = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH) + Duration::from_secs(3600);
     let datetime: DateTime<Local> = modified.into();
     let now = Local::now();
     let duration = now.signed_duration_since(datetime);
@@ -369,7 +402,16 @@ fn print_long_entry(
     let nlink = meta.nlink();
     let uid = meta.uid();
     let gid = meta.gid();
-    let size = meta.len();
+    let size = if meta.file_type().is_char_device() || meta.file_type().is_block_device() {
+        // For devices, show major and minor numbers instead of size
+        let major = (meta.rdev() >> 8) & 0xfff;
+        let minor = meta.rdev() & 0xff;
+        let maj_w = if max_major > 0 { max_major } else { major.to_string().len() };
+        let min_w = if max_minor > 0 { max_minor } else { minor.to_string().len() };
+        format!("{:>w1$}, {:>w2$}", major, minor, w1 = maj_w, w2 = min_w)
+    } else {
+        meta.len().to_string()
+    };
 
     let user = get_user_by_uid(uid)
         .map(|u| u.name().to_string_lossy().into_owned())
