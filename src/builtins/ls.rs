@@ -423,7 +423,7 @@ fn print_long_entry(
         .map(|g| g.name().to_string_lossy().into_owned())
         .unwrap_or(gid.to_string());
 
-    let time_str = if duration.num_days() > 180 || duration.num_days() < 0 {
+    let time_str = if duration.num_days() > 181 || duration.num_days() < 0 {
         datetime.format("%b %e  %Y").to_string()
     } else {
         datetime.format("%b %e %H:%M").to_string()
