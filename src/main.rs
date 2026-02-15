@@ -38,7 +38,12 @@ fn main() -> std::io::Result<()> {
                     execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
                     print!("{}{}{}", "\x1b[36m", path.display(), "\x1b[0m");
                 }
-                Err(_) => break,
+                Err(_) => {
+                    // Directory was removed — use the tracked CWD
+                    let cwd = minishel::CWD.lock().unwrap();
+                    execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
+                    print!("{}{}{}", "\x1b[36m", *cwd, "\x1b[0m");
+                }
             }
             print!("$ ");
         } else {

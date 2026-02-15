@@ -1,16 +1,16 @@
 use crossterm::{cursor, execute};
 use std::env;
 use std::io::{self};
-use std::process;
 pub fn pwd() {
+    execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
     match env::current_dir() {
         Ok(path) => {
-            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
             println!("{}", path.display());
         }
-        Err(e) => {
-            eprintln!("Error getting current directory: {}", e);
-            process::exit(1);
+        Err(_) => {
+            // Directory was removed — fall back to the tracked CWD
+            let cwd = crate::CWD.lock().unwrap();
+            println!("{}", cwd);
         }
     }
 }

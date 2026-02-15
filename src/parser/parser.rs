@@ -42,7 +42,7 @@ pub fn execute_command(command: Command) -> bool {
     match command.name.as_str() {
         "exit" => {
             execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
-            println!("Exiting the shell. Goodbye!");
+            print!("Exiting the shell. Goodbye!\r");
             return false;
         }
 
