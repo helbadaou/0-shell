@@ -1,3 +1,5 @@
+use crossterm::{ cursor, execute };
+use std::io;
 use std::{ fs, path::{ Path, PathBuf } };
 
 pub fn cp(args: &[String]) {
@@ -38,8 +40,11 @@ pub fn cp(args: &[String]) {
         };
 
         match fs::copy(src, &final_dst) {
-            Ok(_) => println!("{} -> {}", src.display(), final_dst.display()),
-            Err(e) => eprintln!("cp: {} -> {} : {}", src.display(), final_dst.display(), e),
+            Ok(_) => {}
+            Err(e) => {
+                execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
+                eprintln!("cp: {} -> {} : {}", src.display(), final_dst.display(), e);
+            }
         }
     }
 }
