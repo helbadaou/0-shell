@@ -143,6 +143,4 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
-    disable_raw_mode()?;
-    Ok(())
 }

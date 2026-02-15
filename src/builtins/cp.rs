@@ -1,19 +1,45 @@
-use crossterm::{cursor, execute};
-use std::fs;
-use std::io::{self};
+use std::{ fs, path::{ Path, PathBuf } };
+
 pub fn cp(args: &[String]) {
     if args.len() < 2 {
-        eprintln!("Error: to file at laste");
+        eprintln!("Usage: cp <source>... <destination>");
         return;
-    };
-    let src = &args[0];
-    let dst = &args[1];
+    }
 
-    match fs::copy(src, dst) {
-        Ok(_) => {
-            execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
-            println!("Copied {} -> {}", src, dst)
+    let dst = Path::new(&args[args.len() - 1]);
+    if args.len() > 2 && !dst.is_dir() {
+        eprintln!("cp: target '{}' is not a directory", dst.display());
+        return;
+    }
+
+    for src_str in &args[..args.len() - 1] {
+        let src = Path::new(src_str);
+
+        if !src.exists() {
+            eprintln!("cp: cannot stat '{}'", src.display());
+            continue;
         }
-        Err(e) => eprintln!("Error: {}", e),
+
+        if src.is_dir() {
+            eprintln!("cp: -r not specified; omitting directory '{}'", src.display());
+            continue;
+        }
+
+        let final_dst: PathBuf = if dst.is_dir() {
+            match src.file_name() {
+                Some(name) => dst.join(name),
+                None => {
+                    eprintln!("cp: invalid path '{}'", src.display());
+                    continue;
+                }
+            }
+        } else {
+            dst.to_path_buf()
+        };
+
+        match fs::copy(src, &final_dst) {
+            Ok(_) => println!("{} -> {}", src.display(), final_dst.display()),
+            Err(e) => eprintln!("cp: {} -> {} : {}", src.display(), final_dst.display(), e),
+        }
     }
 }
