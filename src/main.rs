@@ -72,7 +72,7 @@ fn main() -> std::io::Result<()> {
 
                     // Ctrl+D: Exit the shell
                     KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        println!();
+                        println!("\r");
                         disable_raw_mode()?;
                         return Ok(());
                     }
