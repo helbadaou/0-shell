@@ -38,7 +38,12 @@ pub fn parse_tokens(tokens: Vec<lexer::tokenizer::Lexertype>) {
     }
 }
 
-pub fn execute_command(command: Command) -> bool {
+pub fn execute_command(mut command: Command) -> bool {
+    for i in command.args.iter_mut() {
+        if i == "~" || i.starts_with("~/") {
+            *i = change(&[i.clone()])[0].clone();
+        }
+    }
     match command.name.as_str() {
         "exit" => {
             execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
@@ -114,4 +119,30 @@ pub fn execute_command(command: Command) -> bool {
     }
 
     true
+}
+
+pub fn change(args: &[String]) -> Vec<String> {
+    args.iter()
+        .map(|arg| {
+            if arg == "~" {
+                match std::env::var("HOME") {
+                    Ok(home) => home,
+                    Err(_) => {
+                        eprintln!("Error: HOME environment variable not set.");
+                        arg.clone()
+                    }
+                }
+            } else if let Some(rest) = arg.strip_prefix("~/") {
+                match std::env::var("HOME") {
+                    Ok(home) => format!("{}/{}", home.trim_end_matches('/'), rest),
+                    Err(_) => {
+                        eprintln!("Error: HOME environment variable not set.");
+                        arg.clone()
+                    }
+                }
+            } else {
+                arg.clone()
+            }
+        })
+        .collect()
 }
