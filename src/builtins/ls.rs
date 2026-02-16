@@ -429,14 +429,37 @@ fn print_long_entry(
         datetime.format("%b %e %H:%M").to_string()
     };
 
-    let indicator = if f_flag { get_indicator(meta) } else { "" };
-
     let display_name = escape_filename(name);
 
     let symlink_target = if meta.file_type().is_symlink() {
+        
         match fs::read_link(path) {
             Ok(target) => format!(" -> {}", target.display()),
             Err(_) => String::new(),
+        }
+    } else {
+        String::new()
+    };
+
+    let indicator = if f_flag {
+        if meta.file_type().is_symlink() {
+            // For symlinks, get the indicator of the target
+            if let Ok(target) = fs::read_link(path) {
+                let target_path = if target.is_absolute() {
+                    target
+                } else {
+                    path.parent().unwrap_or(Path::new(".")).join(&target)
+                };
+                if let Ok(target_meta) = fs::metadata(&target_path) {
+                    get_indicator(&target_meta).to_string()
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            }
+        } else {
+            get_indicator(meta).to_string()
         }
     } else {
         String::new()

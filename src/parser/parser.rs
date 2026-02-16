@@ -8,13 +8,12 @@ pub struct Command {
 }
 pub fn parse_tokens(tokens: Vec<lexer::tokenizer::Lexertype>) {
     let mut token_iter = tokens.into_iter();
-
     let command_name = match token_iter.next() {
         Some(lexer::tokenizer::Lexertype::Word(s)) => s,
-        _ => {
-            eprintln!("Error: Command must start with a command name.");
-            return;
-        }
+        Some(lexer::tokenizer::Lexertype::Flag(s)) => s,
+        Some(lexer::tokenizer::Lexertype::DoubleQuotedString(s)) => s,
+        Some(lexer::tokenizer::Lexertype::SingleQuotedString(s)) => s,
+        None => String::new(),
     };
 
     let args: Vec<String> = token_iter
@@ -61,8 +60,8 @@ pub fn execute_command(mut command: Command) -> bool {
 
         "echo" => {
             execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
-            let  text = command.args.join(" ").replace("\n", "\r\n");
-            println!("{}", text );
+            let text = command.args.join(" ").replace("\n", "\r\n");
+            println!("{}", text);
         }
 
         "pwd" => {
@@ -115,7 +114,8 @@ pub fn execute_command(mut command: Command) -> bool {
         }
         _ => {
             execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
-            eprintln!("Command not found: {}", command.name);
+            let name = command.name.replace("\n", "\\n");
+            eprintln!("Command not found: {}", name);
         }
     }
 
