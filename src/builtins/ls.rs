@@ -4,7 +4,6 @@ use std::path::Path;
 use users::{ get_user_by_uid, get_group_by_gid };
 use chrono::{ DateTime, Local };
 use std::time::SystemTime;
-use std::time::Duration;
 use std::io::{ self, Write };
 use crossterm::{ cursor, execute, terminal };
 
@@ -318,7 +317,7 @@ pub fn ls(args: &[String]) {
     let _ = execute!(io::stdout(), cursor::MoveToColumn(0));
 }
 
-fn escape_filename(name: &str) -> String {
+pub fn escape_filename(name: &str) -> String {
     if name.contains('\n') {
         let mut result = format!("'{}'", name.replace('\n', "'$'\\n''"));
         if result.ends_with("''") {
