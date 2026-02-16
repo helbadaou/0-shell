@@ -16,7 +16,7 @@ pub fn rm(args: &[String]) {
 
     let paths = &args[index..];
     if paths.is_empty() {
-        eprintln!("rm: missing operand");
+        eprintln!("rm: missing operand\r");
         return;
     }
 
@@ -25,7 +25,7 @@ pub fn rm(args: &[String]) {
         let metadata = match fs::symlink_metadata(path) {
             Ok(m) => m,
             Err(e) => {
-                eprintln!("rm: cannot remove '{}': {}", path_str, e);
+                eprintln!("rm: cannot remove '{}': {}\r", path_str, e);
                 continue;
             }
         };
@@ -34,19 +34,19 @@ pub fn rm(args: &[String]) {
         if file_type.is_symlink() {
             // Always remove symlink itself
             if let Err(e) = fs::remove_file(path) {
-                eprintln!("rm: cannot remove '{}': {}", path_str, e);
+                eprintln!("rm: cannot remove '{}': {}\r", path_str, e);
             }
         } else if file_type.is_dir() {
             if recursive {
                 if let Err(e) = fs::remove_dir_all(path) {
-                    eprintln!("rm: cannot remove '{}': {}", path_str, e);
+                    eprintln!("rm: cannot remove '{}': {}\r", path_str, e);
                 }
             } else {
-                eprintln!("rm: cannot remove '{}': Is a directory", path_str);
+                eprintln!("rm: cannot remove '{}': Is a directory\r", path_str);
             }
         } else {
             if let Err(e) = fs::remove_file(path) {
-                eprintln!("rm: cannot remove '{}': {}", path_str, e);
+                eprintln!("rm: cannot remove '{}': {}\r", path_str, e);
             }
         }
     }

@@ -1,8 +1,8 @@
 use std::fs;
 pub fn mkdir(args: &[String]) {
     if args.is_empty() {
-        eprintln!("mkdir: missing operand");
-        eprintln!("Usage: mkdir <directory>");
+        eprintln!("mkdir: missing operand \r");
+        eprintln!("Usage: mkdir <directory>\r");
         return;
     }
 

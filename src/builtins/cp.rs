@@ -4,13 +4,13 @@ use std::{ fs, path::{ Path, PathBuf } };
 
 pub fn cp(args: &[String]) {
     if args.len() < 2 {
-        eprintln!("Usage: cp <source>... <destination>");
+        eprintln!("Usage: cp <source>... <destination>\r");
         return;
     }
 
     let dst = Path::new(&args[args.len() - 1]);
     if args.len() > 2 && !dst.is_dir() {
-        eprintln!("cp: target '{}' is not a directory", dst.display());
+        eprintln!("cp: target '{}' is not a directory\r", dst.display());
         return;
     }
 
@@ -18,12 +18,12 @@ pub fn cp(args: &[String]) {
         let src = Path::new(src_str);
 
         if !src.exists() {
-            eprintln!("cp: cannot stat '{}'", src.display());
+            eprintln!("cp: cannot stat '{}': No such file or directory\r", src.display());
             continue;
         }
 
         if src.is_dir() {
-            eprintln!("cp: -r not specified; omitting directory '{}'", src.display());
+            eprintln!("cp: -r not specified; omitting directory '{}'\r", src.display());
             continue;
         }
 
@@ -31,7 +31,7 @@ pub fn cp(args: &[String]) {
             match src.file_name() {
                 Some(name) => dst.join(name),
                 None => {
-                    eprintln!("cp: invalid path '{}'", src.display());
+                    eprintln!("cp: invalid path '{}'\r", src.display());
                     continue;
                 }
             }
@@ -42,8 +42,7 @@ pub fn cp(args: &[String]) {
         match fs::copy(src, &final_dst) {
             Ok(_) => {}
             Err(e) => {
-                execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
-                eprintln!("cp: {} -> {} : {}", src.display(), final_dst.display(), e);
+                eprintln!("cp: cannot copy '{}' to '{}': {}\r", src.display(), final_dst.display(), e);
             }
         }
     }
