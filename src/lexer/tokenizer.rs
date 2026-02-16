@@ -36,7 +36,6 @@ pub enum TokenizeResult {
 }
 
 pub fn tokenize(input: &str) -> TokenizeResult {
-    // println!("Tokenizing input: {}", input);
     let mut tokens = Vec::new();
     let mut buffer = Buffer::new();
     let mut is_escaped = false;
@@ -151,7 +150,6 @@ pub fn tokenize(input: &str) -> TokenizeResult {
                             .chars()
                             .nth(i + 1)
                             .map_or(false, |next| !next.is_whitespace())
-                            
                     {
                         buffer.typ = BufferType::Word;
                     } else if

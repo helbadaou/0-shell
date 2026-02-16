@@ -3,13 +3,13 @@ use std::path::Path;
 
 pub fn rm(args: &[String]) {
     if args.is_empty() {
-        eprintln!("rm: missing operand");
+        eprintln!("rm: missing operand\r");
         return;
     }
 
     let mut recursive = false;
     let mut index = 0;
-    while index < args.len() && args[index] == "-r" { //mzl khas ntcheckee rh lflag khas ykun ri flbdya hit f pc dyali khas drr ykun flbdya 
+    while index < args.len() && args[index] == "-r" {
         recursive = true;
         index += 1;
     }
@@ -32,7 +32,6 @@ pub fn rm(args: &[String]) {
 
         let file_type = metadata.file_type();
         if file_type.is_symlink() {
-            // Always remove symlink itself
             if let Err(e) = fs::remove_file(path) {
                 eprintln!("rm: cannot remove '{}': {}\r", path_str, e);
             }

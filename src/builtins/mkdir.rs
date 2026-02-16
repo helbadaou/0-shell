@@ -8,7 +8,7 @@ pub fn mkdir(args: &[String]) {
 
     for dir in args {
         if let Err(e) = fs::create_dir(dir) {
-            eprintln!("mkdir: cannot create directory '{}': {}", dir, e);
+            eprintln!("mkdir: cannot create directory '{}': {}\r", dir, e);
         }
     }
 }

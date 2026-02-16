@@ -115,7 +115,7 @@ pub fn execute_command(mut command: Command) -> bool {
         _ => {
             execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
             let name = command.name.replace("\n", "\\n");
-            eprintln!("Command not found: {}", name);
+            eprintln!("Command not found: {}\r", name);
         }
     }
 
@@ -129,7 +129,7 @@ pub fn change(args: &[String]) -> Vec<String> {
                 match std::env::var("HOME") {
                     Ok(home) => home,
                     Err(_) => {
-                        eprintln!("Error: HOME environment variable not set.");
+                        eprintln!("Error: HOME environment variable not set.\r");
                         arg.clone()
                     }
                 }
@@ -137,7 +137,7 @@ pub fn change(args: &[String]) -> Vec<String> {
                 match std::env::var("HOME") {
                     Ok(home) => format!("{}/{}", home.trim_end_matches('/'), rest),
                     Err(_) => {
-                        eprintln!("Error: HOME environment variable not set.");
+                        eprintln!("Error: HOME environment variable not set.\r");
                         arg.clone()
                     }
                 }

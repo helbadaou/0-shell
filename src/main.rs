@@ -42,7 +42,6 @@ fn main() -> std::io::Result<()> {
                     print!("\x1b[36m{}\x1b[0m", safe_name);
                 }
                 Err(_) => {
-                    // Directory was removed — use the tracked CWD
                     let cwd = minishel::CWD.lock().unwrap();
                     execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
                     print!("{}{}{}", "\x1b[36m", *cwd, "\x1b[0m");
@@ -56,13 +55,6 @@ fn main() -> std::io::Result<()> {
         io::stdout().flush().unwrap();
         input.clear();
 
-        // let mut input = String::new();
-        /*  if io::stdin().read_line(&mut input).is_err() {
-            println!();
-            break;
-        }*/
-
-        // === READ ONE COMMAND ===
         loop {
             if let Event::Key(key) = event::read()? {
                 match key.code {
@@ -71,14 +63,12 @@ fn main() -> std::io::Result<()> {
                         return Ok(());
                     }
 
-                    // Ctrl+D: Exit the shell
                     KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         println!("\r");
                         disable_raw_mode()?;
                         return Ok(());
                     }
 
-                    // Ctrl+C: Cancel current input
                     KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         println!("^C");
                         input.clear();
@@ -107,7 +97,7 @@ fn main() -> std::io::Result<()> {
                         io::stdout().flush().unwrap();
                     }
 
-                    _ => {} // arrows ignored
+                    _ => {}
                 }
             }
         }
@@ -124,8 +114,6 @@ fn main() -> std::io::Result<()> {
 
         match lexer::tokenizer::tokenize(&line_buffer) {
             lexer::tokenizer::TokenizeResult::Success(tokens) => {
-                /* execute!(io::stdout(), cursor::MoveToColumn(0),)?;
-                println!("Got tokens: {:?}", tokens); */
                 parse_tokens(tokens);
 
                 execute!(io::stdout(), cursor::MoveToColumn(0))?;

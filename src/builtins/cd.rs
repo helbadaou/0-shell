@@ -7,7 +7,7 @@ pub fn cd(args: &[String]) {
         match env::var("HOME") {
             Ok(home) => home,
             Err(_) => {
-                eprintln!("cd: HOME environment variable not set");
+                eprintln!("cd: HOME environment variable not set\r");
                 return;
             }
         }
@@ -18,7 +18,7 @@ pub fn cd(args: &[String]) {
     let new_dir = Path::new(&path);
 
     if let Err(e) = env::set_current_dir(new_dir) {
-        eprintln!("cd: {}: {}", path, e);
+        eprintln!("cd: {}: {}\r", path, e);
     } else {
         if let Ok(canonical) = env::current_dir() {
             let mut cwd = crate::CWD.lock().unwrap();

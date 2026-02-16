@@ -8,7 +8,7 @@ pub fn cat(args: &[String]) {
 
     if args.is_empty() {
         let _ = disable_raw_mode();
-        
+
         let mut stdin = io::stdin();
         match io::copy(&mut stdin, &mut stdout) {
             Err(e) => {
@@ -17,21 +17,20 @@ pub fn cat(args: &[String]) {
             }
             Ok(_) => {}
         }
-        
+
         let _ = enable_raw_mode();
         return;
     }
-    
+
     for filename in args {
         let path = Path::new(filename);
-        
-        // Check if it's a directory
+
         if path.is_dir() {
             let error_msg = format!("0-shell: cat: {}: Is a directory\r\n", filename);
             let _ = io::stderr().write_all(error_msg.as_bytes());
             continue;
         }
-        
+
         match File::open(path) {
             Ok(mut file) => {
                 let mut contents = String::new();

@@ -1,5 +1,3 @@
-use crossterm::{ cursor, execute };
-use std::io;
 use std::{ fs, path::{ Path, PathBuf } };
 
 pub fn cp(args: &[String]) {

@@ -42,7 +42,7 @@ pub fn ls(args: &[String]) {
     let metadata = match fs::symlink_metadata(path) {
         Ok(meta) => meta,
         Err(e) => {
-            eprintln!("0-shell: ls: {}: {}", path_str, e);
+            eprintln!("0-shell: ls: {}: {}\r", path_str, e);
             return;
         }
     };
@@ -80,7 +80,7 @@ pub fn ls(args: &[String]) {
     let entries = match fs::read_dir(path) {
         Ok(read) => read.flatten().collect::<Vec<_>>(),
         Err(e) => {
-            eprintln!("0-shell: ls: {}: {}", path_str, e);
+            eprintln!("0-shell: ls: {}: {}\r", path_str, e);
             return;
         }
     };
@@ -97,7 +97,6 @@ pub fn ls(args: &[String]) {
         let name_a = a.file_name().into_string().unwrap_or_default();
         let name_b = b.file_name().into_string().unwrap_or_default();
 
-        // Skip leading dots for sorting purposes
         let sort_a = name_a.trim_start_matches('.');
         let sort_b = name_b.trim_start_matches('.');
 
@@ -142,7 +141,7 @@ pub fn ls(args: &[String]) {
     let max_major = filtered_entries
         .iter()
         .filter_map(|e| e.metadata().ok())
-        .filter(|m| (m.file_type().is_char_device() || m.file_type().is_block_device()))
+        .filter(|m| m.file_type().is_char_device() || m.file_type().is_block_device())
         .map(|m| {
             let major = (m.rdev() >> 8) & 0xfff;
             major.to_string().len()
@@ -153,7 +152,7 @@ pub fn ls(args: &[String]) {
     let max_minor = filtered_entries
         .iter()
         .filter_map(|e| e.metadata().ok())
-        .filter(|m| (m.file_type().is_char_device() || m.file_type().is_block_device()))
+        .filter(|m| m.file_type().is_char_device() || m.file_type().is_block_device())
         .map(|m| {
             let minor = m.rdev() & 0xff;
             minor.to_string().len()
@@ -441,7 +440,6 @@ fn print_long_entry(
     let display_name = escape_filename(name);
 
     let symlink_target = if meta.file_type().is_symlink() {
-        
         match fs::read_link(path) {
             Ok(target) => format!(" -> {}", target.display()),
             Err(_) => String::new(),
@@ -452,7 +450,6 @@ fn print_long_entry(
 
     let indicator = if f_flag {
         if meta.file_type().is_symlink() {
-            // For symlinks, get the indicator of the target
             if let Ok(target) = fs::read_link(path) {
                 let target_path = if target.is_absolute() {
                     target
