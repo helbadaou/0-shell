@@ -20,7 +20,6 @@ pub fn cd(args: &[String]) {
     if let Err(e) = env::set_current_dir(new_dir) {
         eprintln!("cd: {}: {}", path, e);
     } else {
-        // Update the global CWD to reflect the new directory
         if let Ok(canonical) = env::current_dir() {
             let mut cwd = crate::CWD.lock().unwrap();
             *cwd = canonical.to_string_lossy().to_string();

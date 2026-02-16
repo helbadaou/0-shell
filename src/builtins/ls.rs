@@ -26,7 +26,7 @@ pub fn ls(args: &[String]) {
                     'F' => {
                         f_flag = true;
                     }
-                    _ => {} // Ignore unknown flags
+                    _ => {}
                 }
             }
         }
@@ -40,9 +40,7 @@ pub fn ls(args: &[String]) {
 
     let path = Path::new(path_str);
 
-    // Check if path is a file or directory
     let metadata = match fs::symlink_metadata(path) {
-        // Changed from fs::metadata
         Ok(meta) => meta,
         Err(e) => {
             eprintln!("0-shell: ls: {}: {}", path_str, e);
@@ -50,14 +48,24 @@ pub fn ls(args: &[String]) {
         }
     };
 
-    // If it's a file or symlink (but not a directory), just print it
     if metadata.is_file() || metadata.is_symlink() {
         if l_flag {
             let max_links = 1;
             let max_user = 8;
             let max_group = 8;
             let max_size = metadata.len().to_string().len();
-            print_long_entry(path_str, path, &metadata, f_flag, max_links, max_user, max_group, max_size, 0, 0);
+            print_long_entry(
+                path_str,
+                path,
+                &metadata,
+                f_flag,
+                max_links,
+                max_user,
+                max_group,
+                max_size,
+                0,
+                0
+            );
         } else {
             let indicator = if f_flag {
                 get_indicator(&metadata).to_string()
@@ -70,7 +78,6 @@ pub fn ls(args: &[String]) {
         return;
     }
 
-    // It's a directory, process it as before
     let entries = match fs::read_dir(path) {
         Ok(read) => read.flatten().collect::<Vec<_>>(),
         Err(e) => {
@@ -79,7 +86,6 @@ pub fn ls(args: &[String]) {
         }
     };
 
-    // Filter based on -a flag
     let mut filtered_entries: Vec<_> = entries
         .into_iter()
         .filter(|entry| {
@@ -94,7 +100,6 @@ pub fn ls(args: &[String]) {
         return;
     }
 
-    // Calculate column widths for long format
     let max_links = filtered_entries
         .iter()
         .filter_map(|e| e.metadata().ok())
@@ -161,7 +166,6 @@ pub fn ls(args: &[String]) {
     let max_size = std::cmp::max(device_col_width, max_file_size);
 
     if l_flag {
-        // Calculate total blocks
         let mut total_blocks = 0;
         for entry in &filtered_entries {
             if let Ok(meta) = entry.metadata() {
@@ -169,10 +173,8 @@ pub fn ls(args: &[String]) {
             }
         }
 
-        // Add . and .. blocks to total if -a flag
         if a_flag {
             if let Ok(meta) = fs::symlink_metadata(path) {
-                // Changed
                 total_blocks += meta.blocks();
             }
             let parent_path = if path_str == "." || path_str == "./" {
@@ -181,7 +183,6 @@ pub fn ls(args: &[String]) {
                 Path::new(path_str).parent().unwrap_or(Path::new(".."))
             };
             if let Ok(meta) = fs::symlink_metadata(parent_path) {
-                // Changed
                 total_blocks += meta.blocks();
             }
         }
@@ -190,11 +191,20 @@ pub fn ls(args: &[String]) {
         let _ = io::stdout().write_all(total_output.as_bytes());
         let _ = io::stdout().flush();
 
-        // Print . and .. first if -a flag
         if a_flag {
             if let Ok(meta) = fs::symlink_metadata(path) {
-                // Changed
-                print_long_entry(".", path, &meta, f_flag, max_links, max_user, max_group, max_size, max_major, max_minor);
+                print_long_entry(
+                    ".",
+                    path,
+                    &meta,
+                    f_flag,
+                    max_links,
+                    max_user,
+                    max_group,
+                    max_size,
+                    max_major,
+                    max_minor
+                );
             }
             let parent_path = if path_str == "." || path_str == "./" {
                 Path::new("..")
@@ -202,12 +212,21 @@ pub fn ls(args: &[String]) {
                 Path::new(path_str).parent().unwrap_or(Path::new(".."))
             };
             if let Ok(meta) = fs::symlink_metadata(parent_path) {
-                // Changed
-                print_long_entry("..", parent_path, &meta, f_flag, max_links, max_user, max_group, max_size, max_major, max_minor);
+                print_long_entry(
+                    "..",
+                    parent_path,
+                    &meta,
+                    f_flag,
+                    max_links,
+                    max_user,
+                    max_group,
+                    max_size,
+                    max_major,
+                    max_minor
+                );
             }
         }
 
-        // Print entries
         for entry in &filtered_entries {
             let file_name = entry.file_name().into_string().unwrap_or_default();
             if let Ok(metadata) = fs::symlink_metadata(entry.path()) {
@@ -221,14 +240,12 @@ pub fn ls(args: &[String]) {
                     max_group,
                     max_size,
                     max_major,
-                    max_minor,
+                    max_minor
                 );
             }
         }
     } else {
-        // Short format - column-based
         if a_flag {
-            // Print . and ..
             println!(".{width:<width$}..", width = 18);
         }
 
@@ -236,7 +253,6 @@ pub fn ls(args: &[String]) {
             return;
         }
 
-        // Calculate the longest filename
         let max_name_len = filtered_entries
             .iter()
             .map(|e| {
@@ -256,7 +272,6 @@ pub fn ls(args: &[String]) {
             .max()
             .unwrap_or(1);
 
-        // Add 2 spaces minimum between columns
         let col_width = max_name_len + 2;
         let terminal_width = terminal
             ::size()
@@ -283,11 +298,9 @@ pub fn ls(args: &[String]) {
             let formatted = format!("{}{}", display_name, indicator);
 
             if col_count < cols - 1 {
-                // Not the last column in this row
                 row.push_str(&format!("{:<width$}", formatted, width = col_width));
                 col_count += 1;
             } else {
-                // Last column in this row
                 row.push_str(&formatted);
                 print!("{}\r\n", row);
                 let _ = io::stdout().flush();
@@ -335,17 +348,7 @@ fn format_permissions(mode: u32, is_dir: bool) -> String {
 
     p.push(if is_dir { 'd' } else { '-' });
 
-    let flags = [
-        0o400,
-        0o200,
-        0o100, // user
-        0o040,
-        0o020,
-        0o010, // group
-        0o004,
-        0o002,
-        0o001, // others
-    ];
+    let flags = [0o400, 0o200, 0o100, 0o040, 0o020, 0o010, 0o004, 0o002, 0o001];
 
     for (i, flag) in flags.iter().enumerate() {
         if (mode & flag) != 0 {
@@ -372,14 +375,13 @@ fn print_long_entry(
     max_group: usize,
     max_size: usize,
     max_major: usize,
-    max_minor: usize,
+    max_minor: usize
 ) {
-    let modified = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH) + Duration::from_secs(3600);
+    let modified = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
     let datetime: DateTime<Local> = modified.into();
     let now = Local::now();
     let duration = now.signed_duration_since(datetime);
 
-    // Determine file type character
     let file_type = meta.file_type();
     let file_type_char = if file_type.is_dir() {
         'd'
@@ -398,14 +400,13 @@ fn print_long_entry(
     };
 
     let permissions = format_permissions(meta.permissions().mode(), meta.is_dir());
-    // Replace the first character with the correct type
+
     let permissions_fixed = format!("{}{}", file_type_char, &permissions[1..]);
 
     let nlink = meta.nlink();
     let uid = meta.uid();
     let gid = meta.gid();
     let size = if meta.file_type().is_char_device() || meta.file_type().is_block_device() {
-        // For devices, show major and minor numbers instead of size
         let major = (meta.rdev() >> 8) & 0xfff;
         let minor = meta.rdev() & 0xff;
         let maj_w = if max_major > 0 { max_major } else { major.to_string().len() };
@@ -433,7 +434,6 @@ fn print_long_entry(
 
     let display_name = escape_filename(name);
 
-    // For symlinks, append " -> target"
     let symlink_target = if meta.file_type().is_symlink() {
         match fs::read_link(path) {
             Ok(target) => format!(" -> {}", target.display()),
