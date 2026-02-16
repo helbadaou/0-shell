@@ -61,7 +61,8 @@ pub fn execute_command(mut command: Command) -> bool {
 
         "echo" => {
             execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
-            println!("{}", command.args.join(" "));
+            let  text = command.args.join(" ").replace("\n", "\r\n");
+            println!("{}", text );
         }
 
         "pwd" => {
