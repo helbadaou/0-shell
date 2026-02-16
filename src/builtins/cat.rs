@@ -1,13 +1,15 @@
 use std::fs::File;
 use std::io::{ self };
 use std::path::Path;
+use crossterm::terminal::{ disable_raw_mode, enable_raw_mode };
 
-
-//mzl "cat - file.txt" --> aykhasha tkhdm b controlD
 pub fn cat(args: &[String]) {
     let mut stdout = io::stdout();
 
     if args.is_empty() {
+        // Disable raw mode to allow normal stdin reading
+        let _ = disable_raw_mode();
+        
         let mut stdin = io::stdin();
         match io::copy(&mut stdin, &mut stdout) {
             Err(e) => {
@@ -15,8 +17,12 @@ pub fn cat(args: &[String]) {
             }
             Ok(_) => {}
         }
-        return
+        
+        // Re-enable raw mode for the shell
+        let _ = enable_raw_mode();
+        return;
     }
+    
     for filename in args {
         let path = Path::new(filename);
         match File::open(path) {
