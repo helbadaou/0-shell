@@ -93,7 +93,16 @@ pub fn ls(args: &[String]) {
         })
         .collect();
 
-    filtered_entries.sort_by_key(|e| e.file_name());
+    filtered_entries.sort_by(|a, b| {
+        let name_a = a.file_name().into_string().unwrap_or_default();
+        let name_b = b.file_name().into_string().unwrap_or_default();
+
+        // Skip leading dots for sorting purposes
+        let sort_a = name_a.trim_start_matches('.');
+        let sort_b = name_b.trim_start_matches('.');
+
+        sort_a.cmp(sort_b)
+    });
 
     if filtered_entries.is_empty() && !a_flag {
         return;
@@ -133,7 +142,7 @@ pub fn ls(args: &[String]) {
     let max_major = filtered_entries
         .iter()
         .filter_map(|e| e.metadata().ok())
-        .filter(|m| m.file_type().is_char_device() || m.file_type().is_block_device())
+        .filter(|m| (m.file_type().is_char_device() || m.file_type().is_block_device()))
         .map(|m| {
             let major = (m.rdev() >> 8) & 0xfff;
             major.to_string().len()
@@ -144,7 +153,7 @@ pub fn ls(args: &[String]) {
     let max_minor = filtered_entries
         .iter()
         .filter_map(|e| e.metadata().ok())
-        .filter(|m| m.file_type().is_char_device() || m.file_type().is_block_device())
+        .filter(|m| (m.file_type().is_char_device() || m.file_type().is_block_device()))
         .map(|m| {
             let minor = m.rdev() & 0xff;
             minor.to_string().len()
@@ -334,9 +343,9 @@ fn get_indicator(metadata: &fs::Metadata) -> &str {
     if metadata.is_dir() {
         "/"
     } else if metadata.file_type().is_symlink() {
-        "@"
+        ""
     } else if (mode & 0o111) != 0 {
-        "*"
+        "@"
     } else {
         ""
     }
