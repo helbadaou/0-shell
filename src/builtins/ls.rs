@@ -4,7 +4,6 @@ use std::path::Path;
 use users::{ get_user_by_uid, get_group_by_gid };
 use chrono::{ DateTime, Local };
 use std::time::SystemTime;
-use std::time::Duration;
 use std::io::{ self, Write };
 use crossterm::{ cursor, execute, terminal };
 
