@@ -1,11 +1,12 @@
-use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use crossterm::event::{ self, Event, KeyCode, KeyModifiers };
 use crossterm::terminal::disable_raw_mode;
 use crossterm::terminal::enable_raw_mode;
-use crossterm::{cursor, execute};
+use crossterm::{ cursor, execute };
 use minishel::lexer;
 use minishel::parser::parser::parse_tokens;
 use std::env;
-use std::io::{self, Write};
+use minishel::builtins::ls::escape_filename;
+use std::io::{ self, Write };
 fn main() -> std::io::Result<()> {
     let purple = "\x1b[35m";
     let cyan = "\x1b[36m";
@@ -32,22 +33,24 @@ fn main() -> std::io::Result<()> {
     enable_raw_mode()?;
     loop {
         if line_buffer.is_empty() {
-            execute!(io::stdout(), cursor::MoveToColumn(0),)?;
+            execute!(io::stdout(), cursor::MoveToColumn(0))?;
             match env::current_dir() {
                 Ok(path) => {
-                    execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
-                    print!("{}{}{}", "\x1b[36m", path.display(), "\x1b[0m");
+                    execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
+                    let name = path.display().to_string();
+                    let safe_name = escape_filename(&name);
+                    print!("\x1b[36m{}\x1b[0m", safe_name);
                 }
                 Err(_) => {
                     // Directory was removed — use the tracked CWD
                     let cwd = minishel::CWD.lock().unwrap();
-                    execute!(io::stdout(), cursor::MoveToColumn(0),).unwrap();
+                    execute!(io::stdout(), cursor::MoveToColumn(0)).unwrap();
                     print!("{}{}{}", "\x1b[36m", *cwd, "\x1b[0m");
                 }
             }
             print!("$ ");
         } else {
-            execute!(io::stdout(), cursor::MoveToColumn(0),)?;
+            execute!(io::stdout(), cursor::MoveToColumn(0))?;
             print!("> ");
         }
         io::stdout().flush().unwrap();
@@ -59,8 +62,6 @@ fn main() -> std::io::Result<()> {
             break;
         }*/
 
-
-        
         // === READ ONE COMMAND ===
         loop {
             if let Event::Key(key) = event::read()? {
@@ -86,7 +87,7 @@ fn main() -> std::io::Result<()> {
                     }
 
                     KeyCode::Enter => {
-                        execute!(io::stdout(), cursor::MoveToColumn(0),)?;
+                        execute!(io::stdout(), cursor::MoveToColumn(0))?;
                         println!();
                         io::stdout().flush().unwrap();
                         break;
@@ -119,7 +120,7 @@ fn main() -> std::io::Result<()> {
             line_buffer.push('\n');
         }
         line_buffer.push_str(input.trim_end());
-        execute!(io::stdout(), cursor::MoveToColumn(0),)?;
+        execute!(io::stdout(), cursor::MoveToColumn(0))?;
 
         match lexer::tokenizer::tokenize(&line_buffer) {
             lexer::tokenizer::TokenizeResult::Success(tokens) => {
@@ -127,7 +128,7 @@ fn main() -> std::io::Result<()> {
                 println!("Got tokens: {:?}", tokens); */
                 parse_tokens(tokens);
 
-                execute!(io::stdout(), cursor::MoveToColumn(0),)?;
+                execute!(io::stdout(), cursor::MoveToColumn(0))?;
 
                 line_buffer.clear();
             }
@@ -137,7 +138,7 @@ fn main() -> std::io::Result<()> {
             }
 
             lexer::tokenizer::TokenizeResult::Error(err) => {
-                execute!(io::stdout(), cursor::MoveToColumn(0),)?;
+                execute!(io::stdout(), cursor::MoveToColumn(0))?;
                 eprintln!("{}", err);
                 line_buffer.clear();
             }
