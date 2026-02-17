@@ -8,6 +8,9 @@ use std::io::{ self, Write };
 use crossterm::{ cursor, execute, terminal };
 
 pub fn ls(args: &[String]) {
+    // ---------------------------------------
+    // 1. Flag Parsing: Check for -a, -l, -F
+    // ---------------------------------------
     let mut a_flag = false;
     let mut l_flag = false;
     let mut f_flag = false;
@@ -16,39 +19,42 @@ pub fn ls(args: &[String]) {
         if arg.starts_with('-') && arg.len() > 1 {
             for c in arg.chars().skip(1) {
                 match c {
-                    'a' => {
-                        a_flag = true;
-                    }
-                    'l' => {
-                        l_flag = true;
-                    }
-                    'F' => {
-                        f_flag = true;
-                    }
-                    _ => {}
+                    'a' => { a_flag = true; } // Show hidden files
+                    'l' => { l_flag = true; } // Long listing format
+                    'F' => { f_flag = true; } // Add type indicators
+                    _ => {} // Ignore unrecognized flags
                 }
             }
         }
     }
 
+    // ---------------------------------------
+    // 2. Path Determination: Choose target path
+    // ---------------------------------------
     let path_str = args
         .iter()
         .find(|arg| !arg.starts_with('-'))
         .map(|s| s.as_str())
-        .unwrap_or(".");
-
+        .unwrap_or("."); // Default to current directory
     let path = Path::new(path_str);
 
+    // ---------------------------------------
+    // 3. Metadata Retrieval: Get file info
+    // ---------------------------------------
     let metadata = match fs::symlink_metadata(path) {
         Ok(meta) => meta,
         Err(e) => {
             eprintln!("0-shell: ls: {}: {}\r", path_str, e);
-            return;
+            return; // Exit if metadata cannot be retrieved
         }
     };
 
+    // ---------------------------------------
+    // 4. Single File / Symlink Handling
+    // ---------------------------------------
     if metadata.is_file() || metadata.is_symlink() {
         if l_flag {
+            // Print detailed info for a single file
             let max_links = 1;
             let max_user = 8;
             let max_group = 8;
@@ -66,6 +72,7 @@ pub fn ls(args: &[String]) {
                 0
             );
         } else {
+            // Print simple file name with optional indicator
             let indicator = if f_flag {
                 get_indicator(&metadata).to_string()
             } else {
@@ -74,9 +81,12 @@ pub fn ls(args: &[String]) {
             print!("{}{}\r\n", escape_filename(path_str), indicator);
             let _ = io::stdout().flush();
         }
-        return;
+        return; // Done with single file
     }
 
+    // ---------------------------------------
+    // 5. Directory Listing: Read directory entries
+    // ---------------------------------------
     let entries = match fs::read_dir(path) {
         Ok(read) => read.flatten().collect::<Vec<_>>(),
         Err(e) => {
@@ -85,28 +95,32 @@ pub fn ls(args: &[String]) {
         }
     };
 
+    // ---------------------------------------
+    // 6. Filtering & Sorting Entries
+    // ---------------------------------------
     let mut filtered_entries: Vec<_> = entries
         .into_iter()
         .filter(|entry| {
             let name = entry.file_name().into_string().unwrap_or_default();
-            a_flag || !name.starts_with('.')
+            a_flag || !name.starts_with('.') // Keep hidden files only if -a
         })
         .collect();
 
     filtered_entries.sort_by(|a, b| {
         let name_a = a.file_name().into_string().unwrap_or_default();
         let name_b = b.file_name().into_string().unwrap_or_default();
-
         let sort_a = name_a.trim_start_matches('.');
         let sort_b = name_b.trim_start_matches('.');
-
-        sort_a.cmp(sort_b)
+        sort_a.cmp(sort_b) // Sort alphabetically ignoring leading '.'
     });
 
     if filtered_entries.is_empty() && !a_flag {
-        return;
+        return; // Nothing to display
     }
 
+    // ---------------------------------------
+    // 7. Max Width Calculations (for -l)
+    // ---------------------------------------
     let max_links = filtered_entries
         .iter()
         .filter_map(|e| e.metadata().ok())
@@ -172,6 +186,9 @@ pub fn ls(args: &[String]) {
 
     let max_size = std::cmp::max(device_col_width, max_file_size);
 
+    // ---------------------------------------
+    // 8. Long Listing Output (-l flag)
+    // ---------------------------------------
     if l_flag {
         let mut total_blocks = 0;
         for entry in &filtered_entries {
@@ -180,6 +197,7 @@ pub fn ls(args: &[String]) {
             }
         }
 
+        // Include '.' and '..' if -a flag
         if a_flag {
             if let Ok(meta) = fs::symlink_metadata(path) {
                 total_blocks += meta.blocks();
@@ -199,6 +217,7 @@ pub fn ls(args: &[String]) {
         let _ = io::stdout().flush();
 
         if a_flag {
+            // Print '.' and '..' entries
             if let Ok(meta) = fs::symlink_metadata(path) {
                 print_long_entry(
                     ".",
@@ -234,6 +253,7 @@ pub fn ls(args: &[String]) {
             }
         }
 
+        // Print all filtered entries
         for entry in &filtered_entries {
             let file_name = entry.file_name().into_string().unwrap_or_default();
             if let Ok(metadata) = fs::symlink_metadata(entry.path()) {
@@ -251,7 +271,11 @@ pub fn ls(args: &[String]) {
                 );
             }
         }
-    } else {
+    } 
+    // ---------------------------------------
+    // 9. Column / Short Listing Output
+    // ---------------------------------------
+    else {
         if a_flag {
             println!(".{width:<width$}..", width = 18);
         }
@@ -260,6 +284,7 @@ pub fn ls(args: &[String]) {
             return;
         }
 
+        // Compute column width for terminal display
         let max_name_len = filtered_entries
             .iter()
             .map(|e| {
@@ -268,12 +293,8 @@ pub fn ls(args: &[String]) {
                 let indicator_len = if f_flag {
                     if let Ok(metadata) = e.metadata() {
                         if get_indicator(&metadata).is_empty() { 0 } else { 1 }
-                    } else {
-                        0
-                    }
-                } else {
-                    0
-                };
+                    } else { 0 }
+                } else { 0 };
                 display_name.len() + indicator_len
             })
             .max()
@@ -289,18 +310,15 @@ pub fn ls(args: &[String]) {
         let mut row = String::new();
         let mut col_count = 0;
 
+        // Print entries row by row
         for entry in &filtered_entries {
             let file_name = entry.file_name().into_string().unwrap_or_default();
             let display_name = escape_filename(&file_name);
             let indicator = if f_flag {
                 if let Ok(metadata) = entry.metadata() {
                     get_indicator(&metadata).to_string()
-                } else {
-                    String::new()
-                }
-            } else {
-                String::new()
-            };
+                } else { String::new() }
+            } else { String::new() };
 
             let formatted = format!("{}{}", display_name, indicator);
 
@@ -322,8 +340,12 @@ pub fn ls(args: &[String]) {
         }
     }
 
+    // ---------------------------------------
+    // 10. Final Cursor Reset
+    // ---------------------------------------
     let _ = execute!(io::stdout(), cursor::MoveToColumn(0));
 }
+
 
 pub fn escape_filename(name: &str) -> String {
     if name.contains('\n') {
