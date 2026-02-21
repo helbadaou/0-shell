@@ -11,7 +11,18 @@ pub fn cd(args: &[String]) {
                 return;
             }
         }
-    } else {
+    }else if args[0] == "-"{
+        match env::var("OLDPWD") {
+            Ok(oldpwd) => {
+                // println!("{}\r", oldpwd);
+                oldpwd
+            }
+            Err(_) => {
+                eprintln!("cd: OLDPWD not set\r");
+                return;
+            }
+        }
+    }else {
         args[0].clone()
     };
 
