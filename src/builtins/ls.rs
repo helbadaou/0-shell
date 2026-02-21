@@ -8,29 +8,29 @@ use std::io::{ self, Write };
 use crossterm::{ cursor, execute, terminal };
 
 pub fn ls(args: &[String]) {
-    // ---------------------------------------
-    // 1. Flag Parsing: Check for -a, -l, -F
-    // ---------------------------------------
     let mut a_flag = false;
     let mut l_flag = false;
     let mut f_flag = false;
+    let mut err = "".to_string();
 
     for arg in args {
         if arg.starts_with('-') && arg.len() > 1 {
             for c in arg.chars().skip(1) {
                 match c {
-                    'a' => { a_flag = true; } // Show hidden files
-                    'l' => { l_flag = true; } // Long listing format
-                    'F' => { f_flag = true; } // Add type indicators
-                    _ => {} // Ignore unrecognized flags
+                    'a' => { a_flag = true; }
+                    'l' => { l_flag = true; }
+                    'F' => { f_flag = true; }
+                    _ => {err = format!("ls: invalid option -- {}", c)} 
                 }
             }
         }
     }
 
-    // ---------------------------------------
-    // 2. Path Determination: Choose target path
-    // ---------------------------------------
+    if err != "".to_string(){
+        println!("{}",err);
+        return
+    }
+
     let path_str = args
         .iter()
         .find(|arg| !arg.starts_with('-'))
@@ -38,9 +38,6 @@ pub fn ls(args: &[String]) {
         .unwrap_or("."); // Default to current directory
     let path = Path::new(path_str);
 
-    // ---------------------------------------
-    // 3. Metadata Retrieval: Get file info
-    // ---------------------------------------
     let metadata = match fs::symlink_metadata(path) {
         Ok(meta) => meta,
         Err(e) => {
@@ -49,9 +46,6 @@ pub fn ls(args: &[String]) {
         }
     };
 
-    // ---------------------------------------
-    // 4. Single File / Symlink Handling
-    // ---------------------------------------
     if metadata.is_file() || metadata.is_symlink() {
         if l_flag {
             // Print detailed info for a single file
@@ -84,9 +78,6 @@ pub fn ls(args: &[String]) {
         return; // Done with single file
     }
 
-    // ---------------------------------------
-    // 5. Directory Listing: Read directory entries
-    // ---------------------------------------
     let entries = match fs::read_dir(path) {
         Ok(read) => read.flatten().collect::<Vec<_>>(),
         Err(e) => {
@@ -95,9 +86,6 @@ pub fn ls(args: &[String]) {
         }
     };
 
-    // ---------------------------------------
-    // 6. Filtering & Sorting Entries
-    // ---------------------------------------
     let mut filtered_entries: Vec<_> = entries
         .into_iter()
         .filter(|entry| {
@@ -118,9 +106,6 @@ pub fn ls(args: &[String]) {
         return; // Nothing to display
     }
 
-    // ---------------------------------------
-    // 7. Max Width Calculations (for -l)
-    // ---------------------------------------
     let max_links = filtered_entries
         .iter()
         .filter_map(|e| e.metadata().ok())
@@ -186,9 +171,6 @@ pub fn ls(args: &[String]) {
 
     let max_size = std::cmp::max(device_col_width, max_file_size);
 
-    // ---------------------------------------
-    // 8. Long Listing Output (-l flag)
-    // ---------------------------------------
     if l_flag {
         let mut total_blocks = 0;
         for entry in &filtered_entries {
@@ -272,9 +254,6 @@ pub fn ls(args: &[String]) {
             }
         }
     } 
-    // ---------------------------------------
-    // 9. Column / Short Listing Output
-    // ---------------------------------------
     else {
         if a_flag {
             println!(".{width:<width$}..", width = 18);
@@ -340,9 +319,6 @@ pub fn ls(args: &[String]) {
         }
     }
 
-    // ---------------------------------------
-    // 10. Final Cursor Reset
-    // ---------------------------------------
     let _ = execute!(io::stdout(), cursor::MoveToColumn(0));
 }
 
